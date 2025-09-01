@@ -66,7 +66,7 @@ impl SpotifyService {
         Ok(cards)
     }
 
-    pub fn extract_playlist_id(url: &str) -> Result<String> {
+    fn extract_playlist_id(url: &str) -> Result<String> {
         if url.is_empty() {
             return Err(anyhow::anyhow!("URL cannot be empty"));
         }
