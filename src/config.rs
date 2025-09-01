@@ -1,12 +1,12 @@
 use serde::Deserialize;
 use config::{Config, ConfigError, Environment, File};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub spotify: SpotifySettings,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct SpotifySettings {
     pub client_id: String,
     pub client_secret: String,
