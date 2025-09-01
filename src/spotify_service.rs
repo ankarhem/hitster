@@ -4,7 +4,7 @@ use rspotify::{
     model::{PlayableItem, PlaylistId},
     ClientCredsSpotify, Credentials,
 };
-use std::env;
+use crate::config::Settings;
 use futures::StreamExt;
 
 #[derive(Debug)]
@@ -21,10 +21,12 @@ pub struct SpotifyService {
 
 impl SpotifyService {
     pub async fn new() -> Result<Self> {
-        let client_id = env::var("SPOTIFY_CLIENT_ID")?;
-        let client_secret = env::var("SPOTIFY_CLIENT_SECRET")?;
-        
-        let creds = Credentials::new(&client_id, &client_secret);
+        let settings = Settings::new()?;
+        Self::from_settings(settings).await
+    }
+
+    pub async fn from_settings(settings: Settings) -> Result<Self> {
+        let creds = Credentials::new(&settings.spotify.client_id, &settings.spotify.client_secret);
         
         let spotify = ClientCredsSpotify::new(creds);
         spotify.request_token().await?;
@@ -66,7 +68,7 @@ impl SpotifyService {
         Ok(cards)
     }
 
-    fn extract_playlist_id(url: &str) -> Result<String> {
+    pub fn extract_playlist_id(url: &str) -> Result<String> {
         if url.is_empty() {
             return Err(anyhow::anyhow!("URL cannot be empty"));
         }

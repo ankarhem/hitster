@@ -25,3 +25,8 @@ target
 
 # Environment variables file
 .env
+
+# Configuration files
+config.toml
+config.yaml
+config.json

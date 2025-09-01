@@ -33,7 +33,6 @@ fn create_csv(cards: Vec<SongCard>, title: &str, output_path: &str) -> Result<()
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenv::dotenv().ok();
     let cli = Cli::parse();
     
     println!("Initializing Spotify service...");

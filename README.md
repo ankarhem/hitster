@@ -18,7 +18,9 @@ A Rust application that takes a Spotify playlist URL and generates a CSV file wi
    - Create a new app
    - Note down your Client ID and Client Secret
 
-2. Set up environment variables:
+2. Set up configuration:
+   
+   The application uses the `config` crate which supports multiple configuration sources in the following priority order:
    
    **Option A: Using .env file (recommended for development)**
    ```bash
@@ -26,10 +28,21 @@ A Rust application that takes a Spotify playlist URL and generates a CSV file wi
    # Edit .env file with your actual credentials
    ```
    
-   **Option B: System environment variables**
+   **Option B: Using TOML configuration file**
    ```bash
+   cp config.example.toml config.toml
+   # Edit config.toml file with your actual credentials
+   ```
+   
+   **Option C: System environment variables**
+   ```bash
+   # Standard format
    export SPOTIFY_CLIENT_ID="your_client_id"
    export SPOTIFY_CLIENT_SECRET="your_client_secret"
+   
+   # Or with prefix
+   export HITSTER_SPOTIFY_CLIENT_ID="your_client_id"
+   export HITSTER_SPOTIFY_CLIENT_SECRET="your_client_secret"
    ```
 
 3. Build the application:
