@@ -4,7 +4,7 @@ use rspotify::{
     model::{PlayableItem, PlaylistId},
     ClientCredsSpotify, Credentials,
 };
-use crate::config::Settings;
+use crate::Settings;
 use futures::StreamExt;
 
 #[derive(Debug)]
@@ -21,7 +21,7 @@ pub struct SpotifyService {
 
 impl SpotifyService {
     pub async fn new(settings: &Settings) -> Result<Self> {
-        let creds = Credentials::new(&settings.spotify.client_id, &settings.spotify.client_secret);
+        let creds = Credentials::new(&settings.client_id, &settings.client_secret);
 
         let spotify = ClientCredsSpotify::new(creds);
         spotify.request_token().await?;

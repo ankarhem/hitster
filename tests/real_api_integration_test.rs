@@ -51,10 +51,8 @@ async fn test_real_spotify_api_integration() -> Result<()> {
 async fn test_real_spotify_api_invalid_credentials() {
     // Test with invalid credentials to ensure proper error handling
     let invalid_settings = Settings {
-        spotify: hitster::config::SpotifySettings {
-            client_id: "invalid_client_id".to_string(),
-            client_secret: "invalid_client_secret".to_string(),
-        },
+        client_id: "invalid_client_id".to_string(),
+        client_secret: "invalid_client_secret".to_string(),
     };
 
     let result = SpotifyService::new(&invalid_settings).await;

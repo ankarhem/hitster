@@ -1,31 +1,25 @@
 use serde::Deserialize;
-use config::{Config, ConfigError, Environment, File};
+use config::ConfigError;
+use dotenv::dotenv;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
-    pub spotify: SpotifySettings,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SpotifySettings {
     pub client_id: String,
     pub client_secret: String,
 }
 
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
-        let mut builder = Config::builder()
-            .add_source(File::with_name(".env").required(false))
-            .add_source(Environment::with_prefix("HITSTER").separator("_"));
-
-        builder = builder.add_source(
-            Environment::with_prefix("SPOTIFY")
-                .separator("_")
-                .prefix_separator("_")
-        );
-
-        let settings = builder.build()?;
-
-        settings.try_deserialize::<Settings>()
+        dotenv().ok();
+        
+        let client_id = std::env::var("SPOTIFY_CLIENT_ID")
+            .map_err(|_| ConfigError::NotFound("SPOTIFY_CLIENT_ID not found".into()))?;
+        let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET")
+            .map_err(|_| ConfigError::NotFound("SPOTIFY_CLIENT_SECRET not found".into()))?;
+        
+        Ok(Settings {
+            client_id,
+            client_secret,
+        })
     }
 }
