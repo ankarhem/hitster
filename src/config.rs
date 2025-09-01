@@ -1,6 +1,15 @@
 use serde::Deserialize;
-use config::ConfigError;
+use thiserror::Error;
 use dotenv::dotenv;
+
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("Environment variable not found: {0}")]
+    EnvVarNotFound(String),
+    
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
@@ -13,9 +22,9 @@ impl Settings {
         dotenv().ok();
         
         let client_id = std::env::var("SPOTIFY_CLIENT_ID")
-            .map_err(|_| ConfigError::NotFound("SPOTIFY_CLIENT_ID not found".into()))?;
+            .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_ID".to_string()))?;
         let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET")
-            .map_err(|_| ConfigError::NotFound("SPOTIFY_CLIENT_SECRET not found".into()))?;
+            .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_SECRET".to_string()))?;
         
         Ok(Settings {
             client_id,
