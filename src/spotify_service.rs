@@ -7,7 +7,7 @@ use rspotify::{
 use crate::Settings;
 use futures::StreamExt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SongCard {
     pub title: String,
     pub artist: String,

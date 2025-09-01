@@ -45,40 +45,29 @@ async fn test_real_spotify_api_integration() -> Result<()> {
     let spotify_service = SpotifyService::new(&settings).await?;
     let cards = spotify_service.get_playlist_tracks(TEST_PLAYLIST_URL).await?;
 
-    // Verify we got some tracks
-    assert!(!cards.is_empty(), "Playlist should return at least one track");
-    println!("Found {} tracks in playlist", cards.len());
-
-    // Verify specific songs are present
-    let expected_songs = vec![
-        ("Stressed Out", "Twenty One Pilots"),
-        ("Lane Boy", "Twenty One Pilots"),
-        ("Shake That", "Eminem"),
+    // Assert exact output for all songs
+    let expected_cards = vec![
+        hitster::SongCard {
+            title: "Stressed Out".to_string(),
+            artist: "Twenty One Pilots".to_string(),
+            year: "2015".to_string(),
+            spotify_url: "https://open.spotify.com/track/3CRDbSIZ4r5MsZ0YwxuEkn".to_string(),
+        },
+        hitster::SongCard {
+            title: "Lane Boy".to_string(),
+            artist: "Twenty One Pilots".to_string(),
+            year: "2015".to_string(),
+            spotify_url: "https://open.spotify.com/track/2P61EK6DMGyVyssLWS4fKy".to_string(),
+        },
+        hitster::SongCard {
+            title: "Shake That".to_string(),
+            artist: "Eminem, Nate Dogg".to_string(),
+            year: "2005".to_string(),
+            spotify_url: "https://open.spotify.com/track/6KqKg8IPuvtDB3PNAvffFf".to_string(),
+        },
     ];
 
-    for (title, artist) in expected_songs {
-        let found = cards.iter().any(|card| {
-            card.title == title && card.artist.contains(artist)
-        });
-
-        assert!(found, "Expected song '{}' by '{}' not found in playlist", title, artist);
-        println!("✓ Found '{}' by '{}'", title, artist);
-    }
-
-    // Print all found tracks for debugging
-    println!("\nAll tracks found in playlist:");
-    for (i, card) in cards.iter().enumerate() {
-        println!("{}. {} - {} ({})", i + 1, card.title, card.artist, card.year);
-    }
-
-    // Verify that each card has required fields
-    for card in &cards {
-        assert!(!card.title.is_empty(), "Song title should not be empty");
-        assert!(!card.artist.is_empty(), "Artist should not be empty");
-        assert!(!card.year.is_empty(), "Year should not be empty");
-        assert!(!card.spotify_url.is_empty(), "Spotify URL should not be empty");
-        assert!(card.spotify_url.starts_with("https://open.spotify.com/"), "Spotify URL should be valid");
-    }
+    assert_eq!(cards, expected_cards, "Playlist should return exactly the expected songs");
 
     Ok(())
 }
