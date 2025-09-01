@@ -20,17 +20,12 @@ pub struct SpotifyService {
 }
 
 impl SpotifyService {
-    pub async fn new() -> Result<Self> {
-        let settings = Settings::new()?;
-        Self::from_settings(settings).await
-    }
-
-    pub async fn from_settings(settings: Settings) -> Result<Self> {
+    pub async fn new(settings: &Settings) -> Result<Self> {
         let creds = Credentials::new(&settings.spotify.client_id, &settings.spotify.client_secret);
-        
+
         let spotify = ClientCredsSpotify::new(creds);
         spotify.request_token().await?;
-        
+
         Ok(Self { client: spotify })
     }
 

@@ -35,8 +35,11 @@ fn create_csv(cards: Vec<SongCard>, title: &str, output_path: &str) -> Result<()
 async fn main() -> Result<()> {
     let cli = Cli::parse();
     
+    println!("Reading configuration...");
+    let settings = hitster::Settings::new()?;
+    
     println!("Initializing Spotify service...");
-    let spotify_service = SpotifyService::new().await?;
+    let spotify_service = SpotifyService::new(&settings).await?;
     
     println!("Fetching playlist tracks...");
     let cards = spotify_service.get_playlist_tracks(&cli.playlist_url).await?;
