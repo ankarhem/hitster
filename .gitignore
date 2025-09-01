@@ -30,3 +30,4 @@ target
 config.toml
 config.yaml
 config.json
+/.claude/
