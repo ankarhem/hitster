@@ -36,13 +36,11 @@ async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     let cli = Cli::parse();
     
-    let spotify_service = SpotifyService::new();
-    
-    println!("Getting Spotify access token...");
-    let token = spotify_service.get_access_token().await?;
+    println!("Initializing Spotify service...");
+    let spotify_service = SpotifyService::new().await?;
     
     println!("Fetching playlist tracks...");
-    let cards = spotify_service.get_playlist_tracks(&token, &cli.playlist_url).await?;
+    let cards = spotify_service.get_playlist_tracks(&cli.playlist_url).await?;
     
     println!("Generating CSV with {} cards...", cards.len());
     create_csv(cards, &cli.title, &cli.output)?;

@@ -1,47 +1,11 @@
 use anyhow::Result;
-use reqwest::header;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use rspotify::{
+    clients::BaseClient,
+    model::{PlayableItem, PlaylistId},
+    ClientCredsSpotify, Credentials,
+};
 use std::env;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SpotifyTrack {
-    pub id: String,
-    pub name: String,
-    pub artists: Vec<SpotifyArtist>,
-    pub album: SpotifyAlbum,
-    pub external_urls: HashMap<String, String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SpotifyArtist {
-    pub name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SpotifyAlbum {
-    pub release_date: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SpotifyPlaylist {
-    pub tracks: PlaylistTracks,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PlaylistTracks {
-    pub items: Vec<PlaylistItem>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PlaylistItem {
-    pub track: SpotifyTrack,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TokenResponse {
-    pub access_token: String,
-}
+use futures::StreamExt;
 
 #[derive(Debug)]
 pub struct SongCard {
@@ -52,60 +16,51 @@ pub struct SongCard {
 }
 
 pub struct SpotifyService {
-    client: reqwest::Client,
+    client: ClientCredsSpotify,
 }
 
 impl SpotifyService {
-    pub fn new() -> Self {
-        Self {
-            client: reqwest::Client::new(),
-        }
-    }
-
-    pub async fn get_access_token(&self) -> Result<String> {
+    pub async fn new() -> Result<Self> {
         let client_id = env::var("SPOTIFY_CLIENT_ID")?;
         let client_secret = env::var("SPOTIFY_CLIENT_SECRET")?;
         
-        let auth = format!("{}:{}", client_id, client_secret);
-        let auth_encoded = base64::encode(auth);
+        let creds = Credentials::new(&client_id, &client_secret);
         
-        let response = self
-            .client
-            .post("https://accounts.spotify.com/api/token")
-            .header(header::AUTHORIZATION, format!("Basic {}", auth_encoded))
-            .form(&[("grant_type", "client_credentials")])
-            .send()
-            .await?;
+        let spotify = ClientCredsSpotify::new(creds);
+        spotify.request_token().await?;
         
-        let token_response: TokenResponse = response.json().await?;
-        Ok(token_response.access_token)
+        Ok(Self { client: spotify })
     }
 
-    pub async fn get_playlist_tracks(&self, token: &str, playlist_url: &str) -> Result<Vec<SongCard>> {
+    pub async fn get_playlist_tracks(&self, playlist_url: &str) -> Result<Vec<SongCard>> {
         let playlist_id = Self::extract_playlist_id(playlist_url)?;
+        let playlist_id = PlaylistId::from_id(&playlist_id)?;
         
-        let response = self
+        let playlist = self.client.playlist(playlist_id, None, None).await?;
+        
+        let mut tracks_stream = self
             .client
-            .get(&format!("https://api.spotify.com/v1/playlists/{}/tracks", playlist_id))
-            .header(header::AUTHORIZATION, format!("Bearer {}", token))
-            .header(header::CONTENT_TYPE, "application/json")
-            .send()
-            .await?;
-        
-        let playlist: SpotifyPlaylist = response.json().await?;
+            .playlist_items(playlist.id, None, None);
         
         let mut cards = Vec::new();
-        for item in playlist.tracks.items {
-            let track = item.track;
-            let artist_names: Vec<String> = track.artists.iter().map(|a| a.name.clone()).collect();
-            let year = track.album.release_date.split('-').next().unwrap_or("Unknown").to_string();
-            
-            cards.push(SongCard {
-                title: track.name,
-                artist: artist_names.join(", "),
-                year,
-                spotify_url: track.external_urls.get("spotify").cloned().unwrap_or_default(),
-            });
+        while let Some(item_result) = tracks_stream.next().await {
+            let item = item_result?;
+            if let Some(PlayableItem::Track(track)) = item.track {
+                let artist_names: Vec<String> = track.artists.iter().map(|a| a.name.clone()).collect();
+                let year = track.album.release_date.as_deref()
+                    .unwrap_or("Unknown")
+                    .split('-')
+                    .next()
+                    .unwrap_or("Unknown")
+                    .to_string();
+                
+                cards.push(SongCard {
+                    title: track.name,
+                    artist: artist_names.join(", "),
+                    year,
+                    spotify_url: track.external_urls.get("spotify").cloned().unwrap_or_default(),
+                });
+            }
         }
         
         Ok(cards)
@@ -177,35 +132,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[tokio::test]
-    async fn test_get_access_token_success() {
-        // Note: Full integration testing with mockito would require more complex setup
-        // For now, we'll test the basic functionality
-        
-        unsafe {
-            std::env::set_var("SPOTIFY_CLIENT_ID", "test_client_id");
-            std::env::set_var("SPOTIFY_CLIENT_SECRET", "test_client_secret");
-        }
-
-        let _service = SpotifyService::new();
-        
-        // We can't easily test the actual API call without complex mocking
-        // But we can test that the service was created successfully
-        assert!(true);
-    }
-
-    #[tokio::test]
-    async fn test_get_playlist_tracks_success() {
-        // Note: Full integration testing with mockito would require more complex setup
-        // For now, we'll test the basic functionality
-        
-        let _service = SpotifyService::new();
-        
-        // We can't easily test the actual API call without complex mocking
-        // But we can test that the service was created successfully
-        assert!(true);
-    }
-
     #[test]
     fn test_song_card_creation() {
         let card = SongCard {
@@ -219,12 +145,5 @@ mod tests {
         assert_eq!(card.artist, "Test Artist");
         assert_eq!(card.year, "2023");
         assert_eq!(card.spotify_url, "https://open.spotify.com/track/test");
-    }
-
-    #[test]
-    fn test_spotify_service_creation() {
-        let _service = SpotifyService::new();
-        // Service should be created successfully
-        // This is a basic smoke test
     }
 }

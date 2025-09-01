@@ -4,7 +4,7 @@ A Rust application that takes a Spotify playlist URL and generates a CSV file wi
 
 ## Features
 
-- Fetches track data from Spotify playlists
+- Fetches track data from Spotify playlists using the official [rspotify](https://github.com/ramsayleung/rspotify) crate
 - Extracts song name, artist, release year, and Spotify URL
 - Generates CSV output suitable for creating physical cards
 - Each card contains:
