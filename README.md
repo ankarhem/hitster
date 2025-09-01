@@ -18,7 +18,15 @@ A Rust application that takes a Spotify playlist URL and generates a CSV file wi
    - Create a new app
    - Note down your Client ID and Client Secret
 
-2. Set environment variables:
+2. Set up environment variables:
+   
+   **Option A: Using .env file (recommended for development)**
+   ```bash
+   cp .env.example .env
+   # Edit .env file with your actual credentials
+   ```
+   
+   **Option B: System environment variables**
    ```bash
    export SPOTIFY_CLIENT_ID="your_client_id"
    export SPOTIFY_CLIENT_SECRET="your_client_secret"

@@ -23,7 +23,5 @@ target
 # Nix
 .direnv
 
-
-# Added by cargo
-
-/target
+# Environment variables file
+.env
