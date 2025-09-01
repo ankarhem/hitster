@@ -34,8 +34,8 @@ async fn test_real_spotify_api_invalid_playlist() -> Result<()> {
 
 #[tokio::test]
 async fn test_extract_playlist_id_from_real_url() -> Result<()> {
-    let playlist_id = hitster::SpotifyService::extract_playlist_id(TEST_PLAYLIST_URL)?;
-    assert_eq!(playlist_id, "3vnwX8FuGWpGgQX4hBa8sE", "Should extract correct playlist ID");
+    let playlist_id: hitster::PlaylistId = TEST_PLAYLIST_URL.parse()?;
+    assert_eq!(playlist_id.as_str(), "3vnwX8FuGWpGgQX4hBa8sE", "Should extract correct playlist ID");
     Ok(())
 }
 

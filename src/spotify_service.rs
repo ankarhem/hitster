@@ -1,11 +1,12 @@
 use anyhow::Result;
 use rspotify::{
     clients::BaseClient,
-    model::{PlayableItem, PlaylistId},
+    model::{PlayableItem, PlaylistId as RspotifyPlaylistId},
     ClientCredsSpotify, Credentials,
 };
 use crate::Settings;
 use futures::StreamExt;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub struct SongCard {
@@ -13,6 +14,70 @@ pub struct SongCard {
     pub artist: String,
     pub year: String,
     pub spotify_url: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlaylistId(String);
+
+impl PlaylistId {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for PlaylistId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if s.is_empty() {
+            return Err(anyhow::anyhow!("Playlist ID cannot be empty"));
+        }
+        
+        // Extract ID from URL if needed
+        let id = if s.contains("spotify.com/playlist/") {
+            Self::extract_playlist_id_from_url(s)?
+        } else {
+            s.to_string()
+        };
+        
+        if id.is_empty() {
+            return Err(anyhow::anyhow!("Invalid playlist ID"));
+        }
+        
+        Ok(PlaylistId(id))
+    }
+}
+
+impl PlaylistId {
+    pub fn extract_playlist_id_from_url(url: &str) -> Result<String> {
+        if url.is_empty() {
+            return Err(anyhow::anyhow!("URL cannot be empty"));
+        }
+        
+        let parts: Vec<&str> = url.split('/').collect();
+        let last_part = parts.last().ok_or_else(|| anyhow::anyhow!("Invalid playlist URL"))?;
+        
+        if last_part.is_empty() {
+            return Err(anyhow::anyhow!("Invalid playlist URL: missing ID"));
+        }
+        
+        let id_parts: Vec<&str> = last_part.split('?').collect();
+        let id = id_parts.first().ok_or_else(|| anyhow::anyhow!("Invalid playlist URL"))?;
+        
+        if id.is_empty() {
+            return Err(anyhow::anyhow!("Invalid playlist URL: empty ID"));
+        }
+        
+        Ok(id.to_string())
+    }
+}
+
+impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
+    type Error = anyhow::Error;
+
+    fn try_from(id: PlaylistId) -> Result<Self, Self::Error> {
+        Ok(RspotifyPlaylistId::from_id(id.0)?)
+    }
 }
 
 pub struct SpotifyService {
@@ -30,10 +95,10 @@ impl SpotifyService {
     }
 
     pub async fn get_playlist_tracks(&self, playlist_url: &str) -> Result<Vec<SongCard>> {
-        let playlist_id = Self::extract_playlist_id(playlist_url)?;
-        let playlist_id = PlaylistId::from_id(&playlist_id)?;
+        let playlist_id: PlaylistId = playlist_url.parse()?;
+        let rspotify_playlist_id: RspotifyPlaylistId<'static> = playlist_id.try_into()?;
         
-        let playlist = self.client.playlist(playlist_id, None, None).await?;
+        let playlist = self.client.playlist(rspotify_playlist_id, None, None).await?;
         
         let mut tracks_stream = self
             .client
@@ -62,28 +127,6 @@ impl SpotifyService {
         
         Ok(cards)
     }
-
-    pub fn extract_playlist_id(url: &str) -> Result<String> {
-        if url.is_empty() {
-            return Err(anyhow::anyhow!("URL cannot be empty"));
-        }
-        
-        let parts: Vec<&str> = url.split('/').collect();
-        let last_part = parts.last().ok_or_else(|| anyhow::anyhow!("Invalid playlist URL"))?;
-        
-        if last_part.is_empty() {
-            return Err(anyhow::anyhow!("Invalid playlist URL: missing ID"));
-        }
-        
-        let id_parts: Vec<&str> = last_part.split('?').collect();
-        let id = id_parts.first().ok_or_else(|| anyhow::anyhow!("Invalid playlist URL"))?;
-        
-        if id.is_empty() {
-            return Err(anyhow::anyhow!("Invalid playlist URL: empty ID"));
-        }
-        
-        Ok(id.to_string())
-    }
 }
 
 #[cfg(test)]
@@ -91,41 +134,49 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_playlist_id_valid_url() {
+    fn test_playlist_id_from_valid_url() {
         let url = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M";
-        let result = SpotifyService::extract_playlist_id(url);
+        let result: Result<PlaylistId, _> = url.parse();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "37i9dQZF1DXcBWIGoYBM5M");
+        assert_eq!(result.unwrap().as_str(), "37i9dQZF1DXcBWIGoYBM5M");
     }
 
     #[test]
-    fn test_extract_playlist_id_with_query_params() {
+    fn test_playlist_id_from_id_string() {
+        let id = "37i9dQZF1DXcBWIGoYBM5M";
+        let result: Result<PlaylistId, _> = id.parse();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_str(), "37i9dQZF1DXcBWIGoYBM5M");
+    }
+
+    #[test]
+    fn test_playlist_id_from_url_with_query_params() {
         let url = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=abc123";
-        let result = SpotifyService::extract_playlist_id(url);
+        let result: Result<PlaylistId, _> = url.parse();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "37i9dQZF1DXcBWIGoYBM5M");
+        assert_eq!(result.unwrap().as_str(), "37i9dQZF1DXcBWIGoYBM5M");
     }
 
     #[test]
-    fn test_extract_playlist_id_invalid_url() {
+    fn test_playlist_id_from_invalid_url() {
         let url = "https://open.spotify.com/invalid/37i9dQZF1DXcBWIGoYBM5M";
-        let result = SpotifyService::extract_playlist_id(url);
-        // The function extracts the ID regardless of the path structure
+        let result: Result<PlaylistId, _> = url.parse();
+        // Since the URL doesn't contain "spotify.com/playlist/", it's treated as a raw ID
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "37i9dQZF1DXcBWIGoYBM5M");
+        assert_eq!(result.unwrap().as_str(), "https://open.spotify.com/invalid/37i9dQZF1DXcBWIGoYBM5M");
     }
 
     #[test]
-    fn test_extract_playlist_id_empty_url() {
+    fn test_playlist_id_from_empty_string() {
         let url = "";
-        let result = SpotifyService::extract_playlist_id(url);
+        let result: Result<PlaylistId, _> = url.parse();
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_extract_playlist_id_no_id() {
+    fn test_playlist_id_from_no_id() {
         let url = "https://open.spotify.com/playlist/";
-        let result = SpotifyService::extract_playlist_id(url);
+        let result: Result<PlaylistId, _> = url.parse();
         assert!(result.is_err());
     }
 
