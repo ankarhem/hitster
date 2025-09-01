@@ -3,7 +3,7 @@ use clap::Parser;
 use std::fs::File;
 use std::io::Write;
 
-use hitster::{SpotifyService, SongCard};
+use hitster::{SpotifyService, SongCard, PlaylistId};
 
 #[derive(Parser)]
 #[command(name = "hitster")]
@@ -42,7 +42,8 @@ async fn main() -> Result<()> {
     let spotify_service = SpotifyService::new(&settings).await?;
     
     println!("Fetching playlist tracks...");
-    let cards = spotify_service.get_playlist_tracks(&cli.playlist_url).await?;
+    let playlist_id: PlaylistId = cli.playlist_url.parse()?;
+    let cards = spotify_service.get_playlist_tracks_by_id(playlist_id).await?;
     
     println!("Generating CSV with {} cards...", cards.len());
     create_csv(cards, &cli.title, &cli.output)?;

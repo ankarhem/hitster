@@ -94,8 +94,7 @@ impl SpotifyService {
         Ok(Self { client: spotify })
     }
 
-    pub async fn get_playlist_tracks(&self, playlist_url: &str) -> Result<Vec<SongCard>> {
-        let playlist_id: PlaylistId = playlist_url.parse()?;
+    pub async fn get_playlist_tracks_by_id(&self, playlist_id: PlaylistId) -> Result<Vec<SongCard>> {
         let rspotify_playlist_id: RspotifyPlaylistId<'static> = playlist_id.try_into()?;
         
         let playlist = self.client.playlist(rspotify_playlist_id, None, None).await?;

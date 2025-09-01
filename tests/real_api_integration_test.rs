@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hitster::{SpotifyService, Settings};
+use hitster::{SpotifyService, Settings, PlaylistId};
 
 const TEST_PLAYLIST_URL: &str = "https://open.spotify.com/playlist/3vnwX8FuGWpGgQX4hBa8sE?si=1d7567f5e8bd4c95";
 
@@ -26,7 +26,8 @@ async fn test_real_spotify_api_invalid_playlist() -> Result<()> {
     
     // Test with invalid playlist URL
     let invalid_playlist_url = "https://open.spotify.com/playlist/invalid_playlist_id";
-    let result = spotify_service.get_playlist_tracks(invalid_playlist_url).await;
+    let invalid_playlist_id: PlaylistId = invalid_playlist_url.parse()?;
+    let result = spotify_service.get_playlist_tracks_by_id(invalid_playlist_id).await;
     assert!(result.is_err(), "Should fail with invalid playlist URL");
     
     Ok(())
@@ -43,7 +44,8 @@ async fn test_extract_playlist_id_from_real_url() -> Result<()> {
 async fn test_real_spotify_api_integration() -> Result<()> {
     let settings = Settings::new()?;
     let spotify_service = SpotifyService::new(&settings).await?;
-    let cards = spotify_service.get_playlist_tracks(TEST_PLAYLIST_URL).await?;
+    let playlist_id: PlaylistId = TEST_PLAYLIST_URL.parse()?;
+    let cards = spotify_service.get_playlist_tracks_by_id(playlist_id).await?;
 
     // Assert exact output for all songs
     let expected_cards = vec![
