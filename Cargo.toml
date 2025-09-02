@@ -16,9 +16,10 @@ anyhow = "1.0"
 thiserror = "1.0"
 dotenv = "0.15"
 futures = "0.3"
-oxidize-pdf = "0.1"
 qrcode = "0.14"
 image = "0.24"
 png = "0.17"
+base64 = "0.21"
+html-escape = "0.2"
 
 [dev-dependencies]
