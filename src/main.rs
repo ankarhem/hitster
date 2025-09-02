@@ -3,13 +3,22 @@ use hitster::{SpotifyService, WebServer};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Reading configuration...");
+    // Initialize logging
+    tracing_subscriber::fmt()
+        .with_env_filter("hitster=debug,tower_http=debug")
+        .init();
+    
+    tracing::info!("Starting Hitster application");
+    
+    tracing::debug!("Reading configuration...");
     let settings = hitster::Settings::new()?;
+    tracing::info!("Configuration loaded successfully");
     
-    println!("Initializing Spotify service...");
+    tracing::debug!("Initializing Spotify service...");
     let spotify_service = SpotifyService::new(&settings).await?;
+    tracing::info!("Spotify service initialized");
     
-    println!("Starting web server...");
+    tracing::debug!("Starting web server...");
     let web_server = WebServer::new(spotify_service);
     web_server.run(3000).await?;
     

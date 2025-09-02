@@ -1,110 +1,9 @@
-//! Web server for Hitster
+//! HTML template utilities
 //! 
-//! This module provides a web interface for generating Spotify playlist cards.
-//! It serves HTML pages and handles playlist processing requests.
+//! This module contains HTML templates and styling for the generated cards.
 
-use anyhow::Result;
-use axum::{
-    extract::{Path, State},
-    response::{Html, IntoResponse},
-    routing::{get, Router},
-};
-use std::net::SocketAddr;
-use crate::{SpotifyService, HtmlGenerator, PlaylistId};
-use tracing::{debug, info, error};
-
-/// Web server for Hitster application
-/// 
-/// Provides HTTP endpoints for the web interface and playlist processing
-#[derive(Clone)]
-pub struct WebServer {
-    /// Spotify service for API interactions
-    spotify_service: SpotifyService,
-    /// HTML generator for card creation
-    html_generator: HtmlGenerator,
-}
-
-impl WebServer {
-    /// Create a new web server instance
-    /// 
-    /// # Arguments
-    /// 
-    /// * `spotify_service` - Configured Spotify service instance
-    pub fn new(spotify_service: SpotifyService) -> Self {
-        Self {
-            spotify_service,
-            html_generator: HtmlGenerator::new(),
-        }
-    }
-
-    /// Run the web server
-    /// 
-    /// Starts the HTTP server and listens for incoming connections.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `port` - Port number to listen on
-    /// 
-    /// # Errors
-    /// 
-    /// Returns an error if the server fails to start or run
-    pub async fn run(&self, port: u16) -> Result<()> {
-        info!("Starting web server on port {}", port);
-        
-        let app = Router::new()
-            .route("/", get(root))
-            .route("/playlist/:playlist_id", get(playlist_cards))
-            .with_state(self.clone());
-
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        let listener = tokio::net::TcpListener::bind(addr).await?;
-        
-        info!("🚀 Web server running at http://localhost:{}", port);
-        info!("📋 Endpoints:");
-        info!("   GET /                           - Welcome page");
-        info!("   GET /playlist/<id>             - HTML cards for playlist");
-        info!("   Example: http://localhost:{}/playlist/3vnwX8FuGWpGgQX4hBa8sE", port);
-        
-        axum::serve(listener, app).await?;
-        Ok(())
-    }
-
-    /// Get playlist cards as HTML
-    /// 
-    /// Fetches playlist data and generates HTML cards.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `playlist_id` - The playlist ID to process
-    /// * `title` - Optional custom title for the cards
-    /// 
-    /// # Returns
-    /// 
-    /// HTML string containing the generated cards
-    /// 
-    /// # Errors
-    /// 
-    /// Returns an error if playlist fetching or HTML generation fails
-    pub async fn get_playlist_cards(&self, playlist_id: &str, title: Option<String>) -> Result<String> {
-        debug!("Processing playlist request for ID: {}", playlist_id);
-        let playlist_id: PlaylistId = playlist_id.parse()?;
-        let title = title.unwrap_or_else(|| format!("Playlist: {}", playlist_id));
-        
-        debug!("Fetching playlist data");
-        let cards = self.spotify_service.get_playlist_tracks_by_id(playlist_id.clone()).await?;
-        
-        debug!("Generating HTML content for {} cards", cards.len());
-        let html = self.html_generator.build_html_content(cards, &title);
-        
-        info!("Successfully generated HTML for playlist: {}", playlist_id);
-        Ok(html)
-    }
-}
-
-// Handler functions
-async fn root() -> Html<&'static str> {
-    Html(r#"
-<!DOCTYPE html>
+/// HTML template for the welcome page
+pub const WELCOME_TEMPLATE: &str = r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -131,7 +30,7 @@ async fn root() -> Html<&'static str> {
                         <input 
                             type="text" 
                             id="playlistInput" 
-                            placeholder="37i9dQZF1DXcBWIGoYBM5M or https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+                            placeholder="3vnwX8FuGWpGgQX4hBa8sE or https://open.spotify.com/playlist/3vnwX8FuGWpGgQX4hBa8sE"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                     </div>
@@ -212,28 +111,33 @@ async fn root() -> Html<&'static str> {
         });
     </script>
 </body>
-</html>
-    "#)
-}
+</html>"#;
 
-/// Playlist cards handler - serves HTML cards for a playlist
-async fn playlist_cards(
-    Path(playlist_id): Path<String>,
-    State(server): State<WebServer>,
-) -> impl IntoResponse {
-    debug!("Received playlist request for ID: {}", playlist_id);
-    let title = None;
-    
-    match server.get_playlist_cards(&playlist_id, title).await {
-        Ok(html) => {
-            info!("Successfully served playlist: {}", playlist_id);
-            Html(html).into_response()
-        },
-        Err(e) => {
-            error!("Failed to serve playlist {}: {}", playlist_id, e);
-            let error_html = crate::html_templates::error_template(&e.to_string());
-            Html(error_html).into_response()
-        }
-    }
+/// HTML template for error pages
+pub fn error_template(error_message: &str) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Hitster Cards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                <h1 class="text-2xl font-bold text-red-800 mb-4">❌ Error</h1>
+                <p class="text-red-700 mb-4">Failed to generate cards: {}</p>
+                <a href="/" class="inline-block bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors">
+                    ← Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>"#,
+        error_message
+    )
 }
-

@@ -1,15 +1,27 @@
+//! HTML generation for Spotify playlist cards
+//! 
+//! This module handles the generation of HTML documents containing
+//! printable cards with QR codes for Spotify songs.
+
 use anyhow::Result;
 use crate::SongCard;
-use base64::Engine;
+use crate::qr_generator;
 
+/// Configuration for HTML generation
 #[derive(Clone)]
 pub struct HtmlGenerator {
+    /// Card width in millimeters
     card_width_mm: f64,
+    /// Card height in millimeters
     card_height_mm: f64,
+    /// Margin between cards in millimeters
     margin_mm: f64,
 }
 
 impl HtmlGenerator {
+    /// Create a new HTML generator with default settings
+    /// 
+    /// Uses standard business card dimensions (90mm x 55mm)
     pub fn new() -> Self {
         Self {
             card_width_mm: 90.0,  // Standard business card width in mm
@@ -18,12 +30,37 @@ impl HtmlGenerator {
         }
     }
 
+    /// Generate HTML file from song cards
+    /// 
+    /// Creates a complete HTML document with printable cards and saves it to a file.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `cards` - Vector of song cards to generate HTML for
+    /// * `title` - Title for the HTML document
+    /// * `output_path` - File path to save the HTML
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if file writing fails
     pub fn generate_html(&self, cards: Vec<SongCard>, title: &str, output_path: &str) -> Result<()> {
         let html_content = self.build_html_content(cards, title);
         std::fs::write(output_path, html_content)?;
         Ok(())
     }
 
+    /// Build HTML content from song cards
+    /// 
+    /// Creates a complete HTML document string with printable cards.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `cards` - Vector of song cards to generate HTML for
+    /// * `title` - Title for the HTML document
+    /// 
+    /// # Returns
+    /// 
+    /// A complete HTML document string
     pub fn build_html_content(&self, cards: Vec<SongCard>, title: &str) -> String {
         let cards_html = self.generate_cards_html(&cards);
         
@@ -83,6 +120,15 @@ impl HtmlGenerator {
         )
     }
 
+    /// Generate HTML for all cards
+    /// 
+    /// # Arguments
+    /// 
+    /// * `cards` - Slice of song cards to generate HTML for
+    /// 
+    /// # Returns
+    /// 
+    /// HTML string for all cards
     fn generate_cards_html(&self, cards: &[SongCard]) -> String {
         cards
             .iter()
@@ -91,8 +137,17 @@ impl HtmlGenerator {
             .join("\n")
     }
 
+    /// Generate HTML for a single card
+    /// 
+    /// # Arguments
+    /// 
+    /// * `card` - The song card to generate HTML for
+    /// 
+    /// # Returns
+    /// 
+    /// HTML string for a single card
     fn generate_single_card_html(&self, card: &SongCard) -> String {
-        let qr_data_url = match self.generate_qr_data_url(&card.spotify_url) {
+        let qr_data_url = match qr_generator::generate_qr_data_url(&card.spotify_url) {
             Ok(url) => url,
             Err(_) => "".to_string(), // Fallback to no QR code if generation fails
         };
@@ -122,65 +177,6 @@ impl HtmlGenerator {
                 )
             }
         )
-    }
-
-    fn generate_qr_data_url(&self, url: &str) -> Result<String> {
-        use qrcode::QrCode;
-        use image::{ImageBuffer, Luma};
-        
-        // Generate QR code as character-based art first
-        let qr = QrCode::new(url)?;
-        let qr_string = qr.render::<char>()
-            .quiet_zone(true)
-            .module_dimensions(10, 10)
-            .build();
-        
-        // Convert character-based QR to image
-        let lines: Vec<&str> = qr_string.split('\n').collect();
-        let width = lines.first().map(|l| l.len()).unwrap_or(0) as u32;
-        let height = lines.len() as u32;
-        let module_size = 4; // pixels per module
-        
-        // Create grayscale image buffer
-        let mut gray_image = ImageBuffer::<Luma<u8>, Vec<u8>>::new(width * module_size, height * module_size);
-        
-        // Draw QR code modules
-        for (img_y, line) in lines.iter().enumerate() {
-            for (img_x, ch) in line.chars().enumerate() {
-                let is_black = ch != ' ';
-                
-                // Fill the module area
-                for dy in 0..module_size {
-                    for dx in 0..module_size {
-                        let px = img_x as u32 * module_size + dx;
-                        let py = img_y as u32 * module_size + dy;
-                        
-                        if px < width * module_size && py < height * module_size {
-                            let color = if is_black {
-                                image::Luma([0]) // Black
-                            } else {
-                                image::Luma([255]) // White
-                            };
-                            gray_image.put_pixel(px, py, color);
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Convert QR code to PNG bytes
-        let mut png_data = Vec::new();
-        {
-            let mut encoder = png::Encoder::new(&mut png_data, gray_image.width(), gray_image.height());
-            encoder.set_color(png::ColorType::Grayscale);
-            encoder.set_depth(png::BitDepth::Eight);
-            let mut writer = encoder.write_header()?;
-            writer.write_image_data(gray_image.as_raw())?;
-        }
-        
-        // Convert to base64 data URL
-        let base64 = base64::engine::general_purpose::STANDARD.encode(&png_data);
-        Ok(format!("data:image/png;base64,{}", base64))
     }
 }
 
