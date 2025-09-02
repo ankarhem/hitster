@@ -3,7 +3,6 @@
 //! This module handles the generation of HTML documents containing
 //! printable cards with QR codes for Spotify songs.
 
-use anyhow::Result;
 use crate::SongCard;
 use crate::qr_generator;
 
@@ -30,25 +29,7 @@ impl HtmlGenerator {
         }
     }
 
-    /// Generate HTML file from song cards
-    /// 
-    /// Creates a complete HTML document with printable cards and saves it to a file.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `cards` - Vector of song cards to generate HTML for
-    /// * `title` - Title for the HTML document
-    /// * `output_path` - File path to save the HTML
-    /// 
-    /// # Errors
-    /// 
-    /// Returns an error if file writing fails
-    pub fn generate_html(&self, cards: Vec<SongCard>, title: &str, output_path: &str) -> Result<()> {
-        let html_content = self.build_html_content(cards, title);
-        std::fs::write(output_path, html_content)?;
-        Ok(())
-    }
-
+    
     /// Build HTML content from song cards
     /// 
     /// Creates a complete HTML document string with printable cards.
@@ -190,28 +171,7 @@ impl Default for HtmlGenerator {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_html_generation() {
-        let generator = HtmlGenerator::new();
-        let cards = vec![
-            SongCard {
-                title: "Test Song".to_string(),
-                artist: "Test Artist".to_string(),
-                year: "2023".to_string(),
-                spotify_url: "test_id".to_string(),
-            },
-        ];
-        
-        let result = generator.generate_html(cards, "Test Playlist", "test_output.html");
-        assert!(result.is_ok());
-        
-        // Check if the file was created
-        assert!(std::path::Path::new("test_output.html").exists());
-        
-        // Clean up
-        std::fs::remove_file("test_output.html").unwrap();
-    }
-
+    
     #[test]
     fn test_build_html_content() {
         let generator = HtmlGenerator::new();
