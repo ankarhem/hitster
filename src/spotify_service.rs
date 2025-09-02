@@ -19,6 +19,12 @@ pub struct SongCard {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaylistId(String);
 
+impl std::fmt::Display for PlaylistId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl PlaylistId {
     pub fn as_str(&self) -> &str {
         &self.0
@@ -80,6 +86,7 @@ impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
     }
 }
 
+#[derive(Clone)]
 pub struct SpotifyService {
     client: ClientCredsSpotify,
 }

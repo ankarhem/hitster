@@ -2,6 +2,7 @@ use anyhow::Result;
 use crate::SongCard;
 use base64::Engine;
 
+#[derive(Clone)]
 pub struct HtmlGenerator {
     card_width_mm: f64,
     card_height_mm: f64,
@@ -23,7 +24,7 @@ impl HtmlGenerator {
         Ok(())
     }
 
-    fn build_html_content(&self, cards: Vec<SongCard>, title: &str) -> String {
+    pub fn build_html_content(&self, cards: Vec<SongCard>, title: &str) -> String {
         let cards_html = self.generate_cards_html(&cards);
         
         format!(
