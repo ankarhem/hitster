@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::SongCard;
+use oxidize_pdf::{Document, Page, Font, Color};
 
 pub struct PdfGenerator {
     card_width: f64,
@@ -18,10 +19,9 @@ impl PdfGenerator {
     }
 
     pub fn generate_pdf(&self, cards: Vec<SongCard>, title: &str, output_path: &str) -> Result<()> {
-        use lopdf::{Dictionary, Object, content::Content};
         
-        // Create a simple PDF document
-        let mut doc = lopdf::Document::with_version("1.5");
+        // Create PDF document
+        let mut doc = Document::new();
         
         // Create pages (2x5 grid on A4)
         let cards_per_row = 2;
@@ -29,133 +29,74 @@ impl PdfGenerator {
         let cards_per_page = cards_per_row * cards_per_col;
         
         let pages = (cards.len() + cards_per_page - 1) / cards_per_page;
-        let mut page_ids = Vec::new();
         
         for page_num in 0..pages {
             let start_idx = page_num * cards_per_page;
             let end_idx = std::cmp::min(start_idx + cards_per_page, cards.len());
             
-            // Create content operations for this page
-            let mut operations = Vec::new();
+            // Create a new A4 page
+            let mut page = Page::a4();
             
+            // Add cards to the page
             for card_idx in start_idx..end_idx {
                 let card_index_on_page = card_idx - start_idx;
                 let row = card_index_on_page / cards_per_row;
                 let col = card_index_on_page % cards_per_row;
                 
                 let x = self.margin + col as f64 * (self.card_width + self.margin);
-                let y = 297.0 - self.margin - (row + 1) as f64 * (self.card_height + self.margin);
+                let y = self.margin + row as f64 * (self.card_height + self.margin);
                 
-                operations.extend(self.create_card_operations(&cards[card_idx], title, x, y));
+                self.add_card_to_page(&mut page, &cards[card_idx], title, x, y)?;
             }
             
-            // Create page with content
-            let content = Content { operations };
-            let content_id = doc.add_object(lopdf::Stream::new(Dictionary::new(), content.encode().unwrap()));
-            
-            let page_dict = Dictionary::from_iter([
-                ("Type", Object::Name("Page".into())),
-                ("MediaBox", Object::Array(vec![0.into(), 0.into(), 595.into(), 842.into()])), // A4 size
-                ("Contents", content_id.into()),
-                ("Resources", Object::Dictionary(Dictionary::from_iter([
-                    ("Font", Object::Dictionary(Dictionary::from_iter([
-                        ("F1", Object::Dictionary(Dictionary::from_iter([
-                            ("Type", Object::Name("Font".into())),
-                            ("Subtype", Object::Name("Type1".into())),
-                            ("BaseFont", Object::Name("Helvetica".into())),
-                            ("Encoding", Object::Name("WinAnsiEncoding".into())),
-                        ]))),
-                    ]))),
-                ]))),
-            ]);
-            
-            let page_id = doc.add_object(page_dict);
-            page_ids.push(page_id);
+            // Add the page to the document
+            doc.add_page(page);
         }
-        
-        // Create pages root
-        let page_refs: Vec<Object> = page_ids.iter().map(|&id| Object::Reference(id)).collect();
-        let pages_dict = Dictionary::from_iter([
-            ("Type", Object::Name("Pages".into())),
-            ("Kids", Object::Array(page_refs)),
-            ("Count", (page_ids.len() as i32).into()),
-            ("MediaBox", Object::Array(vec![0.into(), 0.into(), 595.into(), 842.into()])), // A4 size
-        ]);
-        
-        let pages_id = doc.add_object(pages_dict);
-        
-        // Update pages to reference parent
-        for &page_id in &page_ids {
-            if let Some(Object::Dictionary(dict)) = doc.objects.get_mut(&page_id) {
-                dict.set("Parent", Object::Reference(pages_id));
-            }
-        }
-        
-        // Create catalog
-        let catalog_dict = Dictionary::from_iter([
-            ("Type", Object::Name("Catalog".into())),
-            ("Pages", Object::Reference(pages_id)),
-        ]);
-        
-        let catalog_id = doc.add_object(catalog_dict);
-        
-        // Set document catalog
-        doc.trailer.set("Root", Object::Reference(catalog_id));
         
         // Save the document
         doc.save(output_path)?;
         Ok(())
     }
     
-    fn create_card_operations(&self, card: &SongCard, title: &str, x: f64, y: f64) -> Vec<lopdf::content::Operation> {
-        use lopdf::content::*;
+    fn add_card_to_page(&self, page: &mut Page, card: &SongCard, title: &str, x: f64, y: f64) -> Result<()> {
         
-        let mut operations = Vec::new();
+        // Convert mm to points (1 mm = 2.83465 points)
+        let x_pt = x * 2.83465;
+        let y_pt = y * 2.83465;
+        let width_pt = self.card_width * 2.83465;
+        let height_pt = self.card_height * 2.83465;
         
         // Add card border
-        let (x_pt, y_pt) = self.mm_to_points(x, y);
-        let (width_pt, height_pt) = self.mm_to_points(self.card_width, self.card_height);
-        
-        operations.push(Operation::new("q", vec![])); // Save graphics state
-        operations.push(Operation::new("w", vec![1.0.into()])); // Line width
-        operations.push(Operation::new("re", vec![
-            x_pt.into(),
-            y_pt.into(),
-            width_pt.into(),
-            height_pt.into()
-        ]));
-        operations.push(Operation::new("S", vec![])); // Stroke
-        operations.push(Operation::new("Q", vec![])); // Restore graphics state
+        page.graphics()
+            .set_stroke_color(Color::black())
+            .set_line_width(1.0)
+            .rect(x_pt, y_pt, width_pt, height_pt)
+            .stroke();
         
         // Add text content
-        operations.extend(self.create_text_operation(title, x + 5.0, y + self.card_height - 10.0, 12.0));
-        operations.extend(self.create_text_operation(&card.title, x + 5.0, y + self.card_height - 25.0, 10.0));
-        operations.extend(self.create_text_operation(&format!("{} ({})", card.artist, card.year), x + 5.0, y + self.card_height - 40.0, 8.0));
+        let text = page.text();
         
-        // Add QR code placeholder text
-        operations.extend(self.create_text_operation("QR Code", x + self.card_width - 25.0, y + 10.0, 8.0));
+        // Title
+        text.set_font(Font::Helvetica, 12.0)
+            .at(x_pt + 14.17, y_pt + height_pt - 28.35) // 5mm, 10mm from top-right
+            .write(title)?;
         
-        operations
-    }
-    
-    fn mm_to_points(&self, x: f64, y: f64) -> (f64, f64) {
-        // Convert mm to points (1 mm = 2.83465 points)
-        (x * 2.83465, y * 2.83465)
-    }
-    
-    fn create_text_operation(&self, text: &str, x: f64, y: f64, font_size: f64) -> Vec<lopdf::content::Operation> {
-        use lopdf::content::*;
-        use lopdf::Object;
+        // Song title
+        text.set_font(Font::Helvetica, 10.0)
+            .at(x_pt + 14.17, y_pt + height_pt - 70.87) // 5mm, 25mm from top-right
+            .write(&card.title)?;
         
-        let (x_pt, y_pt) = self.mm_to_points(x, y);
+        // Artist and year
+        text.set_font(Font::Helvetica, 8.0)
+            .at(x_pt + 14.17, y_pt + height_pt - 113.39) // 5mm, 40mm from top-right
+            .write(&format!("{} ({})", card.artist, card.year))?;
         
-        vec![
-            Operation::new("BT", vec![]), // Begin text
-            Operation::new("Tf", vec!["F1".into(), font_size.into()]), // Font and size
-            Operation::new("Td", vec![x_pt.into(), y_pt.into()]), // Position
-            Operation::new("Tj", vec![Object::string_literal(text)]), // Text - FIXED
-            Operation::new("ET", vec![]), // End text
-        ]
+        // QR code placeholder
+        text.set_font(Font::Helvetica, 8.0)
+            .at(x_pt + width_pt - 70.87, y_pt + 28.35) // 25mm, 10mm from bottom-left
+            .write("QR Code")?;
+        
+        Ok(())
     }
 }
 
@@ -190,15 +131,9 @@ mod tests {
         // Print file info for debugging
         if let Ok(metadata) = std::fs::metadata("test_output.pdf") {
             println!("PDF file size: {} bytes", metadata.len());
-            
-            // Read and print first few bytes to see PDF header
-            let mut file = std::fs::File::open("test_output.pdf").unwrap();
-            let mut buffer = [0; 50];
-            let bytes_read = std::io::Read::read(&mut file, &mut buffer).unwrap();
-            println!("First {} bytes: {:?}", bytes_read, &buffer[..bytes_read]);
         }
         
-        // Don't clean up for now so we can test the PDF
-        // std::fs::remove_file("test_output.pdf").unwrap();
+        // Clean up
+        std::fs::remove_file("test_output.pdf").unwrap();
     }
 }

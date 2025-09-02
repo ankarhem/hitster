@@ -31,3 +31,5 @@ config.toml
 config.yaml
 config.json
 /.claude/
+
+hitster-cards.pdf

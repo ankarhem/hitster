@@ -16,6 +16,6 @@ anyhow = "1.0"
 thiserror = "1.0"
 dotenv = "0.15"
 futures = "0.3"
-lopdf = "0.31"
+oxidize-pdf = "0.1"
 
 [dev-dependencies]
