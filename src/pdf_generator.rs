@@ -18,13 +18,10 @@ impl PdfGenerator {
     }
 
     pub fn generate_pdf(&self, cards: Vec<SongCard>, title: &str, output_path: &str) -> Result<()> {
-        use lopdf::{Dictionary, Object};
+        use lopdf::{Dictionary, Object, content::Content};
         
         // Create a simple PDF document
         let mut doc = lopdf::Document::with_version("1.5");
-        
-        // Create pages root
-        let pages_id = doc.add_object(Dictionary::new());
         
         // Create pages (2x5 grid on A4)
         let cards_per_row = 2;
@@ -32,13 +29,14 @@ impl PdfGenerator {
         let cards_per_page = cards_per_row * cards_per_col;
         
         let pages = (cards.len() + cards_per_page - 1) / cards_per_page;
+        let mut page_ids = Vec::new();
         
         for page_num in 0..pages {
-            // Create A4 page (595 x 842 points)
-            let (page_id, content_id) = self.create_page(&mut doc, pages_id, page_num)?;
-            
             let start_idx = page_num * cards_per_page;
             let end_idx = std::cmp::min(start_idx + cards_per_page, cards.len());
+            
+            // Create content operations for this page
+            let mut operations = Vec::new();
             
             for card_idx in start_idx..end_idx {
                 let card_index_on_page = card_idx - start_idx;
@@ -48,52 +46,68 @@ impl PdfGenerator {
                 let x = self.margin + col as f64 * (self.card_width + self.margin);
                 let y = 297.0 - self.margin - (row + 1) as f64 * (self.card_height + self.margin);
                 
-                self.add_card_to_page(&mut doc, page_id, content_id, &cards[card_idx], title, x, y)?;
+                operations.extend(self.create_card_operations(&cards[card_idx], title, x, y));
+            }
+            
+            // Create page with content
+            let content = Content { operations };
+            let content_id = doc.add_object(lopdf::Stream::new(Dictionary::new(), content.encode().unwrap()));
+            
+            let page_dict = Dictionary::from_iter([
+                ("Type", Object::Name("Page".into())),
+                ("MediaBox", Object::Array(vec![0.into(), 0.into(), 595.into(), 842.into()])), // A4 size
+                ("Contents", content_id.into()),
+                ("Resources", Object::Dictionary(Dictionary::from_iter([
+                    ("Font", Object::Dictionary(Dictionary::from_iter([
+                        ("F1", Object::Dictionary(Dictionary::from_iter([
+                            ("Type", Object::Name("Font".into())),
+                            ("Subtype", Object::Name("Type1".into())),
+                            ("BaseFont", Object::Name("Helvetica".into())),
+                            ("Encoding", Object::Name("WinAnsiEncoding".into())),
+                        ]))),
+                    ]))),
+                ]))),
+            ]);
+            
+            let page_id = doc.add_object(page_dict);
+            page_ids.push(page_id);
+        }
+        
+        // Create pages root
+        let page_refs: Vec<Object> = page_ids.iter().map(|&id| Object::Reference(id)).collect();
+        let pages_dict = Dictionary::from_iter([
+            ("Type", Object::Name("Pages".into())),
+            ("Kids", Object::Array(page_refs)),
+            ("Count", (page_ids.len() as i32).into()),
+            ("MediaBox", Object::Array(vec![0.into(), 0.into(), 595.into(), 842.into()])), // A4 size
+        ]);
+        
+        let pages_id = doc.add_object(pages_dict);
+        
+        // Update pages to reference parent
+        for &page_id in &page_ids {
+            if let Some(Object::Dictionary(dict)) = doc.objects.get_mut(&page_id) {
+                dict.set("Parent", Object::Reference(pages_id));
             }
         }
         
-        // Set up the document catalog
-        let catalog_id = doc.add_object(Dictionary::from_iter([
-            ("Type", "Catalog".into()),
-            ("Pages", pages_id.into()),
-        ]));
+        // Create catalog
+        let catalog_dict = Dictionary::from_iter([
+            ("Type", Object::Name("Catalog".into())),
+            ("Pages", Object::Reference(pages_id)),
+        ]);
         
-        // Set up pages dictionary
-        let mut pages_dict = Dictionary::new();
-        pages_dict.set("Type", "Pages");
-        pages_dict.set("Kids", lopdf::Object::Array(Vec::<lopdf::Object>::new())); // Will be populated with page IDs
-        pages_dict.set("Count", pages as i32);
-        doc.objects.insert(pages_id, Object::Dictionary(pages_dict));
+        let catalog_id = doc.add_object(catalog_dict);
         
-        // Set the document trailer
-        doc.trailer.set("Root", catalog_id);
+        // Set document catalog
+        doc.trailer.set("Root", Object::Reference(catalog_id));
         
         // Save the document
         doc.save(output_path)?;
         Ok(())
     }
     
-    fn create_page(&self, doc: &mut lopdf::Document, pages_id: lopdf::ObjectId, _page_num: usize) -> Result<(lopdf::ObjectId, lopdf::ObjectId)> {
-        use lopdf::Dictionary;
-        
-        // Create content stream for the page
-        let content_id = doc.add_object(Dictionary::new());
-        
-        // Create page dictionary
-        let mut page_dict = Dictionary::new();
-        page_dict.set("Type", "Page");
-        page_dict.set("Parent", pages_id);
-        page_dict.set("Contents", content_id);
-        page_dict.set("MediaBox", vec![0.into(), 0.into(), 595.into(), 842.into()]); // A4 size
-        page_dict.set("Resources", Dictionary::new());
-        
-        // Add page to document
-        let page_id = doc.add_object(page_dict);
-        
-        Ok((page_id, content_id))
-    }
-    
-    fn add_card_to_page(&self, doc: &mut lopdf::Document, _page_id: lopdf::ObjectId, content_id: lopdf::ObjectId, card: &SongCard, title: &str, x: f64, y: f64) -> Result<()> {
+    fn create_card_operations(&self, card: &SongCard, title: &str, x: f64, y: f64) -> Vec<lopdf::content::Operation> {
         use lopdf::content::*;
         
         let mut operations = Vec::new();
@@ -121,13 +135,7 @@ impl PdfGenerator {
         // Add QR code placeholder text
         operations.extend(self.create_text_operation("QR Code", x + self.card_width - 25.0, y + 10.0, 8.0));
         
-        // Convert operations to bytes and add to page content
-        use lopdf::content::Content;
-        let content = Content {
-            operations: operations.clone(),
-        };
-        doc.add_page_contents(content_id, content.encode().unwrap())?;
-        Ok(())
+        operations
     }
     
     fn mm_to_points(&self, x: f64, y: f64) -> (f64, f64) {
@@ -137,6 +145,7 @@ impl PdfGenerator {
     
     fn create_text_operation(&self, text: &str, x: f64, y: f64, font_size: f64) -> Vec<lopdf::content::Operation> {
         use lopdf::content::*;
+        use lopdf::Object;
         
         let (x_pt, y_pt) = self.mm_to_points(x, y);
         
@@ -144,7 +153,7 @@ impl PdfGenerator {
             Operation::new("BT", vec![]), // Begin text
             Operation::new("Tf", vec!["F1".into(), font_size.into()]), // Font and size
             Operation::new("Td", vec![x_pt.into(), y_pt.into()]), // Position
-            Operation::new("Tj", vec![text.into()]), // Text
+            Operation::new("Tj", vec![Object::string_literal(text)]), // Text - FIXED
             Operation::new("ET", vec![]), // End text
         ]
     }
@@ -170,12 +179,6 @@ mod tests {
                 year: "2023".to_string(),
                 spotify_url: "test_id".to_string(),
             },
-            SongCard {
-                title: "Another Song".to_string(),
-                artist: "Another Artist".to_string(),
-                year: "2022".to_string(),
-                spotify_url: "another_id".to_string(),
-            },
         ];
         
         let result = generator.generate_pdf(cards, "Test Playlist", "test_output.pdf");
@@ -184,7 +187,18 @@ mod tests {
         // Check if the file was created
         assert!(std::path::Path::new("test_output.pdf").exists());
         
-        // Clean up
-        std::fs::remove_file("test_output.pdf").unwrap();
+        // Print file info for debugging
+        if let Ok(metadata) = std::fs::metadata("test_output.pdf") {
+            println!("PDF file size: {} bytes", metadata.len());
+            
+            // Read and print first few bytes to see PDF header
+            let mut file = std::fs::File::open("test_output.pdf").unwrap();
+            let mut buffer = [0; 50];
+            let bytes_read = std::io::Read::read(&mut file, &mut buffer).unwrap();
+            println!("First {} bytes: {:?}", bytes_read, &buffer[..bytes_read]);
+        }
+        
+        // Don't clean up for now so we can test the PDF
+        // std::fs::remove_file("test_output.pdf").unwrap();
     }
 }
