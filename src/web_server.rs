@@ -34,7 +34,7 @@ impl WebServer {
         println!("📋 Endpoints:");
         println!("   GET /                           - Welcome page");
         println!("   GET /playlist/<id>             - HTML cards for playlist");
-        println!("   Example: http://localhost:{}/playlist/37i9dQZF1DXcBWIGoYBM5M", port);
+        println!("   Example: http://localhost:{}/playlist/3vnwX8FuGWpGgQX4hBa8sE", port);
         
         axum::serve(listener, app).await?;
         Ok(())
