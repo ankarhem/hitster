@@ -8,7 +8,7 @@ use crate::Settings;
 use futures::StreamExt;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SongCard {
     pub title: String,
     pub artist: String,

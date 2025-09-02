@@ -2,6 +2,7 @@ use anyhow::Result;
 
 use crate::SongCard;
 use oxidize_pdf::{Document, Page, Font, Color};
+use image::RgbImage;
 
 pub struct PdfGenerator {
     card_width: f64,
@@ -91,10 +92,78 @@ impl PdfGenerator {
             .at(x_pt + 14.17, y_pt + height_pt - 113.39) // 5mm, 40mm from top-right
             .write(&format!("{} ({})", card.artist, card.year))?;
         
-        // QR code placeholder
-        text.set_font(Font::Helvetica, 8.0)
-            .at(x_pt + width_pt - 70.87, y_pt + 28.35) // 25mm, 10mm from bottom-left
-            .write("QR Code")?;
+        // Add QR code
+        self.add_qr_code(page, &card.spotify_url, x_pt + width_pt - 45.35, y_pt + 14.17)?;
+        
+        Ok(())
+    }
+    
+    fn add_qr_code(&self, page: &mut Page, url: &str, x: f64, y: f64) -> Result<()> {
+        use qrcode::QrCode;
+        use oxidize_pdf::Image;
+        
+        // Generate QR code as character-based art first
+        let qr = QrCode::new(url)?;
+        let qr_string = qr.render::<char>()
+            .quiet_zone(true)
+            .module_dimensions(20, 20)
+            .build();
+        
+        // Convert character-based QR to image
+        let lines: Vec<&str> = qr_string.split('\n').collect();
+        let width = lines.first().map(|l| l.len()).unwrap_or(0) as u32;
+        let height = lines.len() as u32;
+        let module_size = 4; // pixels per module
+        
+        // Create RGB image buffer
+        let mut rgb_image = RgbImage::new(width * module_size, height * module_size);
+        
+        // Draw QR code modules
+        for (img_y, line) in lines.iter().enumerate() {
+            for (img_x, ch) in line.chars().enumerate() {
+                let is_black = ch != ' ';
+                
+                // Fill the module area
+                for dy in 0..module_size {
+                    for dx in 0..module_size {
+                        let px = img_x as u32 * module_size + dx;
+                        let py = img_y as u32 * module_size + dy;
+                        
+                        if px < width * module_size && py < height * module_size {
+                            let color = if is_black {
+                                image::Rgb([0, 0, 0]) // Black
+                            } else {
+                                image::Rgb([255, 255, 255]) // White
+                            };
+                            rgb_image.put_pixel(px, py, color);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Convert QR code to PNG bytes
+        let mut png_data = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut png_data, rgb_image.width(), rgb_image.height());
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header()?;
+            writer.write_image_data(rgb_image.as_raw())?;
+        }
+        
+        // Create PDF image from PNG data
+        let pdf_image = Image::from_png_data(png_data)?;
+        
+        // Register the image with a unique name
+        let image_name = format!("qr_code_{}", url.replace("/", "_").replace(":", "_"));
+        page.add_image(&image_name, pdf_image);
+        
+        // Calculate QR code size in points (make it 30mm x 30mm)
+        let qr_size = 30.0 * 2.83465; // 30mm in points
+        
+        // Draw the QR code image using its registered name
+        page.draw_image(&image_name, x, y, qr_size, qr_size)?;
         
         Ok(())
     }
