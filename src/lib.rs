@@ -8,4 +8,5 @@ pub use infrastructure::SpotifyService;
 pub use web::WebServer;
 pub use web::generate_qr_data_url;
 pub use web::templates::{CardsTemplate, CardTemplate};
+pub use web::AppError;
 pub use application::{HitsterService, Playlist, PlaylistId, Track};
