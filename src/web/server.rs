@@ -45,15 +45,7 @@ async fn playlist_cards(
     Path(playlist_id): Path<String>,
     State(server): State<WebServer>,
 ) -> Result<impl IntoResponse, AppError> {
-    let playlist = server.hitster_service.get_playlist_by_id(&playlist_id).await
-        .map_err(|e| {
-            // Convert "not found" errors to 404
-            if e.to_string().contains("not found") || e.to_string().contains("404") {
-                AppError::NotFound(format!("Playlist '{}' not found", playlist_id))
-            } else {
-                AppError::Service(e)
-            }
-        })?;
+    let playlist = server.hitster_service.get_playlist_by_id(&playlist_id).await?;
     
     let html = build_html_content(playlist.tracks, &playlist.name)?;
     
@@ -71,7 +63,8 @@ fn build_html_content(tracks: Vec<crate::application::models::Track>, title: &st
         cards: card_templates,
     };
     
-    Ok(template.render()?)
+    let html = template.render().map_err(|e| AppError::Anything(anyhow::anyhow!(e)))?;
+    Ok(html)
 }
 
 fn create_card_templates(tracks: Vec<crate::application::models::Track>) -> Result<Vec<CardTemplate>, AppError> {
@@ -79,8 +72,7 @@ fn create_card_templates(tracks: Vec<crate::application::models::Track>) -> Resu
     
     // First, create all front cards
     for track in &tracks {
-        let qr_data_url = qr_code::generate_qr_data_url(&track.spotify_url)
-            .map_err(|e| AppError::QrCode(format!("Failed to generate QR code for track '{}': {}", track.title, e)))?;
+        let qr_data_url = qr_code::generate_qr_data_url(&track.spotify_url)?;
         
         all_cards.push(CardTemplate::Front { qr_data_url });
     }
