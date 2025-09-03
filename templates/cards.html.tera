@@ -8,21 +8,21 @@
     <style>
         /* Print-specific customizations that work with Tailwind */
         @page {
-            size: A4;
-            margin: 8mm;
+            size: 210mm 297mm;
+            margin: 0;
         }
         
-        /* Custom card dimensions and print optimizations */
+        /* Exact card dimensions for A4 paper - 3x4 grid of 70mm squares */
         .card {
-            width: 90mm;
-            height: 55mm;
+            width: 70mm;
+            height: 70mm;
             page-break-inside: avoid;
             break-inside: avoid;
         }
         
         .qr-code {
-            width: 18mm;
-            height: 18mm;
+            width: 22mm;
+            height: 22mm;
         }
         
         /* Text truncation for long titles/artists */
@@ -33,68 +33,121 @@
             overflow: hidden;
         }
         
-        /* Print media adjustments */
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* Print media - exact A4 layout with no margins */
         @media print {
             body {
                 margin: 0;
                 padding: 0;
                 background: white;
+                width: 210mm;
+                height: 297mm;
+                overflow: hidden;
             }
             
-            /* Remove any interactive elements in print */
-            .no-print {
+            .card-grid {
+                display: grid !important;
+                grid-template-columns: repeat(3, 70mm) !important;
+                grid-template-rows: repeat(4, 70mm) !important;
+                gap: 0 !important;
+                width: 210mm !important;
+                height: 280mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            .card {
+                border: 1px solid #000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            .qr-code {
+                width: 22mm !important;
+                height: 22mm !important;
+            }
+            
+            /* Hide any view-specific elements */
+            .view-only {
                 display: none !important;
+            }
+        }
+        
+        /* View mode - centered with padding for better UX */
+        @media screen {
+            .card-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 70mm);
+                grid-template-rows: repeat(4, 70mm);
+                gap: 8px;
+                justify-content: center;
+                padding: 20px;
+                background: #f5f5f5;
+                min-height: 100vh;
+            }
+            
+            .card {
+                border: 2px solid #333;
+                background: white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: transform 0.2s ease;
+            }
+            
+            .card:hover {
+                transform: scale(1.02);
             }
         }
     </style>
 </head>
-<body class="bg-white text-black font-sans leading-normal">
-    <!-- Page Header -->
-    <div class="text-center mb-8 break-after-avoid">
-        <h1 class="text-2xl font-bold mb-2">Hitster Cards</h1>
-        <p class="text-sm text-gray-600">{{ title }} • {{ cards|length }} songs</p>
+<body class="bg-gray-100">
+    <!-- View mode info (hidden in print) -->
+    <div class="view-only bg-blue-50 border-b border-blue-200 p-4 text-center">
+        <h2 class="text-lg font-semibold text-blue-800 mb-1">Hitster Cards - {{ title }}</h2>
+        <p class="text-sm text-blue-600">{{ cards|length }} songs • Print or save as PDF for perfect 70×70mm cards</p>
+        <p class="text-xs text-blue-500 mt-1">A4 paper • 3×4 grid • No cutting margins needed</p>
     </div>
     
     <!-- Cards Grid -->
-    <div class="grid grid-cols-2 gap-[5mm] max-w-none">
+    <div class="card-grid">
         {% for card in cards %}
-        <div class="card border border-black bg-white p-[4mm] flex flex-col">
-            <!-- Card Content -->
-            <div class="flex-1 flex flex-col justify-between mb-[3mm]">
-                <div>
-                    <h3 class="text-xs font-bold mb-[2mm] leading-tight line-clamp-2" title="{{ card.title }}">
-                        {{ card.title }}
-                    </h3>
-                    <p class="text-[9pt] mb-[1mm] leading-tight line-clamp-2" title="{{ card.artist }}">
-                        {{ card.artist }}
-                    </p>
-                </div>
+        <div class="card bg-white flex flex-col p-2">
+            <!-- Song Info -->
+            <div class="flex-1 flex flex-col">
+                <h3 class="text-[10pt] font-bold leading-tight line-clamp-2 mb-1" title="{{ card.title }}">
+                    {{ card.title }}
+                </h3>
+                <p class="text-[8pt] text-gray-600 leading-tight line-clamp-3 mb-2" title="{{ card.artist }}">
+                    {{ card.artist }}
+                </p>
                 
                 <div class="flex justify-between items-center mt-auto">
-                    <span class="text-[8pt] bg-gray-100 px-[2mm] py-[1mm] rounded-full">
+                    <span class="text-[7pt] bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
                         {{ card.year }}
                     </span>
-                    <span class="text-[8pt] text-green-600 font-medium">
+                    <span class="text-[7pt] text-green-600 font-medium">
                         ♫ Spotify
                     </span>
                 </div>
             </div>
             
             <!-- QR Code Section -->
-            <div class="border-t border-gray-200 pt-[3mm] flex items-center justify-center h-[20mm]">
+            <div class="flex items-center justify-center pt-1 mt-1 border-t border-gray-200">
                 {% if card.qr_data_url %}
                 <img src="{{ card.qr_data_url }}" alt="QR Code" class="qr-code">
                 {% else %}
                 <div class="text-center text-gray-400">
-                    <div class="text-2xl mb-1">♪</div>
-                    <div class="text-[6pt]">QR unavailable</div>
+                    <div class="text-lg mb-0.5">♪</div>
+                    <div class="text-[5pt]">QR unavailable</div>
                 </div>
                 {% endif %}
-            </div>
-            
-            <!-- Card Footer -->
-            <div class="text-center text-[6pt] text-gray-500 mt-[2mm]">
-                Scan to play on Spotify
             </div>
         </div>
         {% endfor %}

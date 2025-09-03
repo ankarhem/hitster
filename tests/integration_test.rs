@@ -49,9 +49,10 @@ async fn test_full_workflow_with_valid_config() {
     assert!(html_content.contains("Test Playlist"));
     assert!(html_content.contains("songs"));
     
-    // Verify at least one card is present
-    assert!(html_content.contains("border border-black bg-white"));
-    assert!(html_content.contains("grid grid-cols-2"));
+    // Verify at least one card is present and using new layout
+    assert!(html_content.contains("card-grid"));
+    assert!(html_content.contains("width: 70mm"));
+    assert!(html_content.contains("height: 70mm"));
     
     // Verify the first song is present
     if let Some(first_card) = cards.first() {
@@ -131,7 +132,8 @@ async fn test_html_generator_basic() {
     // Verify print optimization and Tailwind usage
     assert!(html.contains("@page"));
     assert!(html.contains("tailwindcss"));
-    assert!(html.contains("grid grid-cols-2"));
+    assert!(html.contains("grid-template-columns: repeat(3, 70mm)"));
+    assert!(html.contains("width: 70mm"));
 }
 
 #[tokio::test]
