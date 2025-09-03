@@ -27,7 +27,7 @@ async fn test_real_spotify_api_invalid_playlist() -> Result<()> {
     // Test with invalid playlist URL
     let invalid_playlist_url = "https://open.spotify.com/playlist/invalid_playlist_id";
     let invalid_playlist_id: PlaylistId = invalid_playlist_url.parse()?;
-    let result = spotify_service.get_playlist_tracks_by_id(invalid_playlist_id).await;
+    let result = spotify_service.get_playlist(invalid_playlist_id).await;
     assert!(result.is_err(), "Should fail with invalid playlist URL");
     
     Ok(())
@@ -45,7 +45,8 @@ async fn test_real_spotify_api_integration() -> Result<()> {
     let settings = Settings::new()?;
     let spotify_service = SpotifyService::new(&settings).await?;
     let playlist_id: PlaylistId = TEST_PLAYLIST_URL.parse()?;
-    let cards = spotify_service.get_playlist_tracks_by_id(playlist_id).await?;
+    let playlist = spotify_service.get_playlist(playlist_id).await?;
+    let cards = playlist.tracks;
 
     // Assert exact output for all songs
     let expected_cards = vec![

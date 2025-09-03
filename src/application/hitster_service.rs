@@ -1,11 +1,9 @@
-use crate::infrastructure::spotify_service::{SpotifyService, PlaylistId};
+use crate::infrastructure::spotify_service::SpotifyService;
+use crate::application::models::PlaylistId;
 use crate::HtmlGenerator;
 use anyhow::Result;
 use tracing::{debug, info};
 
-/// Main application service for Hitster
-/// 
-/// Orchestrates the flow from playlist ID to generated HTML cards
 #[derive(Clone)]
 pub struct HitsterService {
     spotify_service: SpotifyService,
@@ -13,7 +11,6 @@ pub struct HitsterService {
 }
 
 impl HitsterService {
-    /// Create a new Hitster service instance
     pub fn new(spotify_service: SpotifyService) -> Result<Self> {
         Ok(Self {
             spotify_service,
@@ -21,17 +18,16 @@ impl HitsterService {
         })
     }
 
-    /// Generate playlist cards as HTML
     pub async fn generate_playlist_cards(&self, playlist_id: &str, title: Option<String>) -> Result<String> {
         debug!("Processing playlist request for ID: {}", playlist_id);
         let playlist_id: PlaylistId = playlist_id.parse()?;
-        let title = title.unwrap_or_else(|| format!("Playlist: {}", playlist_id));
         
         debug!("Fetching playlist data");
-        let cards = self.spotify_service.get_playlist_tracks_by_id(playlist_id.clone()).await?;
+        let playlist = self.spotify_service.get_playlist(playlist_id.clone()).await?;
+        let title = title.unwrap_or_else(|| playlist.name);
         
-        debug!("Generating HTML content for {} cards", cards.len());
-        let html = self.html_generator.build_html_content(cards, &title)?;
+        debug!("Generating HTML content for {} tracks", playlist.tracks.len());
+        let html = self.html_generator.build_html_content(playlist.tracks, &title)?;
         
         info!("Successfully generated HTML for playlist: {}", playlist_id);
         Ok(html)

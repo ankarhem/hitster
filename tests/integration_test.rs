@@ -29,13 +29,14 @@ async fn test_full_workflow_with_valid_config() {
     let playlist_id: PlaylistId = "3vnwX8FuGWpGgQX4hBa8sE".parse().unwrap();
     
     // Test playlist fetching
-    let cards = match spotify_service.get_playlist_tracks_by_id(playlist_id).await {
-        Ok(cards) => cards,
+    let playlist = match spotify_service.get_playlist(playlist_id).await {
+        Ok(playlist) => playlist,
         Err(e) => {
             println!("Skipping test - Playlist fetch failed: {}", e);
             return;
         }
     };
+    let cards = playlist.tracks;
 
     // Verify we got some cards
     assert!(!cards.is_empty(), "Playlist should contain at least one track");

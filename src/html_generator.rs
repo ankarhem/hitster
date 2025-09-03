@@ -3,7 +3,7 @@
 //! This module handles the generation of HTML documents containing
 //! printable cards with QR codes for Spotify songs.
 
-use crate::SongCard;
+use crate::application::models::SongCard;
 use crate::templates::{CardsTemplate, CardTemplate};
 use crate::qr_generator;
 use anyhow::Result;
