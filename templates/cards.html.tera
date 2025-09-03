@@ -1,3 +1,4 @@
+{% import "card_macros.html" as macros %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,52 +95,30 @@
         <p class="text-sm text-blue-600">{{ total_cards }} songs • Print or save as PDF for dual-sided 70×70mm cards</p>
         <p class="text-xs text-blue-500 mt-1">A4 paper • 3×4 grid • Front pages first, then back sides</p>
     </div>
-    
+
     <!-- Front Pages (QR codes only) -->
-    <div class="print:hidden mb-8 text-center">
-        <h3 class="text-lg font-semibold text-gray-700 mb-2">Front Pages (QR Codes)</h3>
-        <p class="text-sm text-gray-500">These will be printed first - one side only</p>
-    </div>
-    
-    {% for page in pages %}
-    <div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8 print:card-grid" style="width: 210mm; height: 280mm;">
-        {% for card in page %}
-        <div class="bg-white border-2 border-gray-800 rounded shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center justify-center p-2 print:card">
-            {% if card.qr_data_url %}
-            <img src="{{ card.qr_data_url }}" alt="QR Code" class="w-24 h-24 print:qr-code">
-            {% else %}
-            <div class="text-center text-gray-400">
-                <div class="text-2xl mb-1">♪</div>
-                <div class="text-xs">QR unavailable</div>
-            </div>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
+<div class="print:hidden mb-8 text-center">
+    <h3 class="text-lg font-semibold text-gray-700 mb-2">Front Pages (QR Codes)</h3>
+    <p class="text-sm text-gray-500">These will be printed first - one side only</p>
+</div>
+
+{% for page in pages %}
+<div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8 print:card-grid" style="width: 210mm; height: 280mm;">
+    {% for card in page %}
+    {{ macros::card_front(card=card) }}
+    {% endfor %}
+</div>
 {% endfor %}
-    
-    <!-- Back Pages (Song details - hidden in view mode) -->
-    <div class="hidden print:block">
-        {% for page in pages %}
-        <div class="print:card-grid print:break-after-page">
-            {% for card in page %}
-            <div class="print:card bg-white flex flex-col p-3">
-                <h3 class="font-bold leading-tight mb-2 print:text-sm line-clamp-2" title="{{ card.title }}">
-                    {{ card.title }}
-                </h3>
-                <p class="text-gray-600 leading-tight mb-4 print:text-xs line-clamp-3" title="{{ card.artist }}">
-                    {{ card.artist }}
-                </p>
-                
-                <div class="mt-auto text-center">
-                    <span class="font-bold print:text-xl">
-                        {{ card.year }}
-                    </span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+
+<!-- Back Pages (Song details - hidden in view mode) -->
+<div class="hidden print:block">
+    {% for page in pages %}
+    <div class="print:card-grid print:break-after-page">
+        {% for card in page %}
+        {{ macros::card_back(card=card) }}
         {% endfor %}
     </div>
+    {% endfor %}
+</div>
 </body>
 </html>

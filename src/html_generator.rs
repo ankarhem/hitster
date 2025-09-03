@@ -53,7 +53,8 @@ impl HtmlGenerator {
     pub fn new() -> Result<Self> {
         let mut tera = tera::Tera::default();
         
-        // Add the cards template
+        // Add the templates
+        tera.add_template_file("templates/card_macros.html", Some("card_macros.html"))?;
         tera.add_template_file("templates/cards.html.tera", Some("cards.html"))?;
         
         // Autoescape on HTML templates
