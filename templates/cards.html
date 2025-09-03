@@ -4,7 +4,7 @@
 
 {% block title %}Hitster Cards - {{ title }}{% endblock %}
 
-{% block styles %}
+{% block head %}
 <style>
     @page {
         size: A4;
@@ -52,7 +52,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block body %}
 {# View mode info (hidden in print) #}
 <div class="print:hidden bg-blue-50 border-b border-blue-200 p-4 text-center">
     <h2 class="text-lg font-semibold text-blue-800 mb-1">Hitster Cards - {{ title }}</h2>
