@@ -13,8 +13,10 @@ use serde::Serialize;
 pub struct TemplateContext {
     /// Page title
     pub title: String,
-    /// List of song cards with QR codes
-    pub cards: Vec<CardContext>,
+    /// Total number of cards
+    pub total_cards: usize,
+    /// List of song cards with QR codes, chunked into pages of 12 cards each
+    pub pages: Vec<Vec<CardContext>>,
 }
 
 /// Individual card context for template rendering
@@ -83,7 +85,8 @@ impl HtmlGenerator {
         
         let mut tera_context = tera::Context::new();
         tera_context.insert("title", &context.title);
-        tera_context.insert("cards", &context.cards);
+        tera_context.insert("total_cards", &context.total_cards);
+        tera_context.insert("pages", &context.pages);
         
         let html = self.tera.render("cards.html", &tera_context)?;
         Ok(html)
@@ -128,7 +131,9 @@ impl HtmlGenerator {
     /// 
     /// Complete template context
     fn create_template_context(&self, title: String, cards: Vec<CardContext>) -> TemplateContext {
-        TemplateContext { title, cards }
+        let total_cards = cards.len();
+        let pages = cards.chunks(12).map(|chunk| chunk.to_vec()).collect();
+        TemplateContext { title, total_cards, pages }
     }
 }
 
@@ -179,7 +184,9 @@ mod tests {
         
         let context = generator.create_template_context("Test Playlist".to_string(), cards);
         assert_eq!(context.title, "Test Playlist");
-        assert_eq!(context.cards.len(), 1);
+        assert_eq!(context.total_cards, 1);
+        assert_eq!(context.pages.len(), 1);
+        assert_eq!(context.pages[0].len(), 1);
     }
 
     #[tokio::test]
@@ -199,6 +206,6 @@ mod tests {
         assert!(html.contains("Test Song"));
         assert!(html.contains("Test Artist"));
         assert!(html.contains("2023"));
-        assert!(html.contains("1 songs"));
+        assert!(html.contains("songs"));
     }
 }

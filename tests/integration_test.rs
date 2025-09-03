@@ -49,10 +49,12 @@ async fn test_full_workflow_with_valid_config() {
     assert!(html_content.contains("Test Playlist"));
     assert!(html_content.contains("songs"));
     
-    // Verify at least one card is present and using new layout
-    assert!(html_content.contains("card-grid"));
-    assert!(html_content.contains("w-[70mm]"));
-    assert!(html_content.contains("h-[70mm]"));
+    // Verify dual-sided layout
+    assert!(html_content.contains("Front Pages (QR Codes)"));
+    assert!(html_content.contains("hidden print:block"));
+    assert!(html_content.contains("print:break-after-page"));
+    assert!(html_content.contains("grid-template-columns: repeat(3, 70mm)"));
+    assert!(html_content.contains("grid-template-rows: repeat(4, 70mm)"));
     
     // Verify the first song is present
     if let Some(first_card) = cards.first() {
@@ -129,11 +131,14 @@ async fn test_html_generator_basic() {
     assert!(html.contains("Test Artist"));
     assert!(html.contains("2023"));
     
-    // Verify print optimization and Tailwind usage
+    // Verify dual-sided layout and print optimization
     assert!(html.contains("@page"));
     assert!(html.contains("tailwindcss"));
-    assert!(html.contains("grid-cols-3"));
-    assert!(html.contains("w-[70mm]"));
+    assert!(html.contains("Front Pages (QR Codes)"));
+    assert!(html.contains("hidden print:block"));
+    assert!(html.contains("print:break-after-page"));
+    assert!(html.contains("width: 50mm !important"));
+    assert!(html.contains("font-size: 24pt !important"));
 }
 
 #[tokio::test]
