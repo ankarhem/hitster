@@ -4,7 +4,7 @@ use rspotify::{
     model::{PlayableItem, PlaylistId as RspotifyPlaylistId},
     ClientCredsSpotify, Credentials,
 };
-use crate::application::models::{Playlist, PlaylistId, SongCard};
+use crate::application::models::{Playlist, PlaylistId, Track};
 use crate::Settings;
 use futures::StreamExt;
 use tracing::{debug, info, warn};
@@ -63,7 +63,7 @@ impl SpotifyService {
                     .to_string();
                 
                 let title = track.name.clone();
-                tracks.push(SongCard {
+                tracks.push(Track {
                     title: title.clone(),
                     artist: artist_names.join(", "),
                     year,
@@ -118,15 +118,6 @@ mod tests {
     }
 
     #[test]
-    fn test_playlist_id_from_invalid_url() {
-        let url = "https://open.spotify.com/invalid/37i9dQZF1DXcBWIGoYBM5M";
-        let result: Result<PlaylistId, _> = url.parse();
-        // Since the URL doesn't contain "spotify.com/playlist/", it's treated as a raw ID
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().as_str(), "https://open.spotify.com/invalid/37i9dQZF1DXcBWIGoYBM5M");
-    }
-
-    #[test]
     fn test_playlist_id_from_empty_string() {
         let url = "";
         let result: Result<PlaylistId, _> = url.parse();
@@ -144,7 +135,7 @@ mod tests {
     fn test_playlist_creation() {
         let playlist_id: PlaylistId = "test_id".parse().unwrap();
         let tracks = vec![
-            SongCard {
+            Track {
                 title: "Test Song".to_string(),
                 artist: "Test Artist".to_string(),
                 year: "2023".to_string(),

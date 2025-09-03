@@ -3,7 +3,7 @@
 //! This module handles the generation of HTML documents containing
 //! printable cards with QR codes for Spotify songs.
 
-use crate::application::models::SongCard;
+use crate::application::models::Track;
 use crate::templates::{CardsTemplate, CardTemplate};
 use crate::qr_generator;
 use anyhow::Result;
@@ -46,7 +46,7 @@ impl HtmlGenerator {
     /// # Errors
     /// 
     /// Returns an error if template rendering fails
-    pub fn build_html_content(&self, cards: Vec<SongCard>, title: &str) -> Result<String> {
+    pub fn build_html_content(&self, cards: Vec<Track>, title: &str) -> Result<String> {
         // Get the total number of cards before moving them
         let total_cards = cards.len();
         
@@ -72,7 +72,7 @@ impl HtmlGenerator {
     /// # Returns
     /// 
     /// Vector of card templates with front and back sides alternating
-    fn create_card_templates(&self, cards: Vec<SongCard>) -> Result<Vec<CardTemplate>> {
+    fn create_card_templates(&self, cards: Vec<Track>) -> Result<Vec<CardTemplate>> {
         let mut all_cards = Vec::new();
         
         // First, create all front cards

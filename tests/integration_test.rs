@@ -111,7 +111,7 @@ async fn test_html_generator_basic() {
     
     // Create test cards
     let cards = vec![
-        hitster::SongCard {
+        hitster::Track {
             title: "Test Song".to_string(),
             artist: "Test Artist".to_string(),
             year: "2023".to_string(),

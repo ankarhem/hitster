@@ -50,19 +50,19 @@ async fn test_real_spotify_api_integration() -> Result<()> {
 
     // Assert exact output for all songs
     let expected_cards = vec![
-        hitster::SongCard {
+        hitster::Track {
             title: "Stressed Out".to_string(),
             artist: "Twenty One Pilots".to_string(),
             year: "2015".to_string(),
             spotify_url: "https://open.spotify.com/track/3CRDbSIZ4r5MsZ0YwxuEkn".to_string(),
         },
-        hitster::SongCard {
+        hitster::Track {
             title: "Lane Boy".to_string(),
             artist: "Twenty One Pilots".to_string(),
             year: "2015".to_string(),
             spotify_url: "https://open.spotify.com/track/2P61EK6DMGyVyssLWS4fKy".to_string(),
         },
-        hitster::SongCard {
+        hitster::Track {
             title: "Shake That".to_string(),
             artist: "Eminem, Nate Dogg".to_string(),
             year: "2005".to_string(),

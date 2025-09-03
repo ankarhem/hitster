@@ -54,12 +54,12 @@ impl FromStr for PlaylistId {
 pub struct Playlist {
     pub id: PlaylistId,
     pub name: String,
-    pub tracks: Vec<SongCard>,
+    pub tracks: Vec<Track>,
 }
 
 /// Represents a song card with all necessary information
 #[derive(Debug, Clone, PartialEq)]
-pub struct SongCard {
+pub struct Track {
     pub title: String,
     pub artist: String,
     pub year: String,
