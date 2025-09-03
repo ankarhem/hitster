@@ -7,7 +7,7 @@ use rspotify::{
 use crate::application::models::{Playlist, PlaylistId, Track};
 use crate::Settings;
 use futures::StreamExt;
-use tracing::{info, warn};
+use tracing::{info, warn, instrument};
 
 impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
     type Error = anyhow::Error;
@@ -23,6 +23,7 @@ pub struct SpotifyService {
 }
 
 impl SpotifyService {
+    #[instrument(skip(settings))]
     pub async fn new(settings: &Settings) -> Result<Self> {
         let creds = Credentials::new(&settings.client_id, &settings.client_secret);
         let spotify = ClientCredsSpotify::new(creds);
@@ -32,6 +33,7 @@ impl SpotifyService {
         Ok(Self { client: spotify })
     }
 
+    #[instrument(skip(self), fields(playlist_id = %playlist_id))]
     pub async fn get_playlist(&self, playlist_id: PlaylistId) -> Result<Playlist> {
         let rspotify_playlist_id: RspotifyPlaylistId<'static> = playlist_id.clone().try_into()?;
         

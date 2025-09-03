@@ -2,7 +2,7 @@ use crate::infrastructure::spotify_service::SpotifyService;
 use crate::application::models::PlaylistId;
 use crate::HtmlGenerator;
 use anyhow::Result;
-use tracing::info;
+use tracing::{info, instrument};
 
 #[derive(Clone)]
 pub struct HitsterService {
@@ -11,6 +11,7 @@ pub struct HitsterService {
 }
 
 impl HitsterService {
+    #[instrument(skip(spotify_service))]
     pub fn new(spotify_service: SpotifyService) -> Result<Self> {
         Ok(Self {
             spotify_service,
@@ -18,6 +19,7 @@ impl HitsterService {
         })
     }
 
+    #[instrument(skip(self))]
     pub async fn generate_playlist_cards(&self, playlist_id: &str, title: Option<String>) -> Result<String> {
         let playlist_id: PlaylistId = playlist_id.parse()?;
         let playlist = self.spotify_service.get_playlist(playlist_id.clone()).await?;

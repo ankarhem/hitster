@@ -8,6 +8,7 @@ use crate::templates::{CardsTemplate, CardTemplate};
 use crate::qr_generator;
 use anyhow::Result;
 use askama::Template;
+use tracing::instrument;
 
 /// HTML generator using Askama templates
 /// 
@@ -24,6 +25,7 @@ impl HtmlGenerator {
     /// # Errors
     /// 
     /// Returns an error if template compilation fails
+    #[instrument]
     pub fn new() -> Result<Self> {
         // Askama templates are compiled at build time, so no runtime setup needed
         Ok(Self {})
@@ -46,6 +48,7 @@ impl HtmlGenerator {
     /// # Errors
     /// 
     /// Returns an error if template rendering fails
+    #[instrument(skip(self), fields(title, card_count = %cards.len()))]
     pub fn build_html_content(&self, cards: Vec<Track>, title: &str) -> Result<String> {
         // Get the total number of cards before moving them
         let total_cards = cards.len();
