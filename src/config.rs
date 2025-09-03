@@ -55,25 +55,6 @@ impl Settings {
         Self::from_env()
     }
 
-    /// Load configuration from environment variables with custom .env file path
-    /// 
-    /// # Arguments
-    /// 
-    /// * `env_path` - Optional path to .env file (if None, uses default .env)
-    /// 
-    /// # Errors
-    /// 
-    /// Returns `ConfigError::EnvVarNotFound` if required environment variables are not set
-    pub fn from_env_path(env_path: Option<&str>) -> Result<Self, ConfigError> {
-        if let Some(path) = env_path {
-            dotenv::from_filename(path).ok();
-        } else {
-            dotenv().ok();
-        }
-        
-        Self::load_from_env()
-    }
-
     /// Load configuration from environment variables (internal)
     fn from_env() -> Result<Self, ConfigError> {
         dotenv().ok();
@@ -91,14 +72,5 @@ impl Settings {
             client_id,
             client_secret,
         })
-    }
-
-    /// Validate configuration by checking if credentials are non-empty
-    /// 
-    /// # Returns
-    /// 
-    /// `true` if configuration is valid, `false` otherwise
-    pub fn is_valid(&self) -> bool {
-        !self.client_id.is_empty() && !self.client_secret.is_empty()
     }
 }
