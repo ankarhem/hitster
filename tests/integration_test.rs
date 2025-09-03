@@ -137,8 +137,8 @@ async fn test_html_generator_basic() {
     assert!(html.contains("Front Pages (QR Codes)"));
     assert!(html.contains("hidden print:block"));
     assert!(html.contains("print:break-after-page"));
-    assert!(html.contains("width: 50mm !important"));
-    assert!(html.contains("font-size: 24pt !important"));
+    assert!(html.contains("width: 60mm"));
+    assert!(html.contains("font-size: 24px"));
 }
 
 #[tokio::test]

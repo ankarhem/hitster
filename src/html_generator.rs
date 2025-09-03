@@ -1,4 +1,4 @@
-//! HTML generation for Spotify playlist cards using Tera templating
+//! HTML generation for Spotify playlist cards using Askama templating
 //! 
 //! This module handles the generation of HTML documents containing
 //! printable cards with QR codes for Spotify songs.
@@ -6,13 +6,12 @@
 use crate::SongCard;
 use crate::qr_generator;
 use anyhow::Result;
-use serde::Serialize;
-use tera::{Value, to_value};
-use std::collections::HashMap;
+use askama::Template;
 
 /// Template context for card generation
-#[derive(Debug, Clone, Serialize)]
-pub struct TemplateContext {
+#[derive(Template)]
+#[template(path = "cards.html")]
+pub struct CardsTemplate {
     /// Page title
     pub title: String,
     /// Total number of cards
@@ -22,7 +21,7 @@ pub struct TemplateContext {
 }
 
 /// Individual card context for template rendering
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct CardContext {
     /// Song title
     pub title: String,
@@ -34,45 +33,30 @@ pub struct CardContext {
     pub qr_data_url: String,
 }
 
-/// HTML generator using Tera templates
+/// HTML generator using Askama templates
 /// 
-/// This struct manages template loading and rendering for generating
+/// This struct manages template rendering for generating
 /// printable HTML cards from Spotify playlists.
+/// 
+/// No need to store template engine - Askama handles it at compile time.
 #[derive(Clone)]
-pub struct HtmlGenerator {
-    /// Tera template engine
-    tera: tera::Tera,
-}
+pub struct HtmlGenerator {}
 
 impl HtmlGenerator {
     /// Create a new HTML generator with default settings
     /// 
-    /// Initializes the Tera template engine and loads templates.
-    /// 
     /// # Errors
     /// 
-    /// Returns an error if template loading fails
+    /// Returns an error if template compilation fails
     pub fn new() -> Result<Self> {
-        let mut tera = tera::Tera::default();
-        
-        // Add the templates
-        tera.add_template_file("templates/base.html.tera", Some("base.html"))?;
-        tera.add_template_file("templates/card_macros.html", Some("card_macros.html"))?;
-        tera.add_template_file("templates/cards.html.tera", Some("cards.html"))?;
-        
-        // Autoescape on HTML templates
-        tera.autoescape_on(vec![".html"]);
-        
-        // Register custom filters
-        tera.register_filter("pluralize", pluralize_filter);
-        
-        Ok(Self { tera })
+        // Askama templates are compiled at build time, so no runtime setup needed
+        Ok(Self {})
     }
 
-    /// Build HTML content from song cards using Tera template
+    /// Build HTML content from song cards using Askama template
     /// 
     /// Creates a complete HTML document string with printable cards
-    /// using the Tera template engine.
+    /// using the Askama template engine.
     /// 
     /// # Arguments
     /// 
@@ -90,12 +74,7 @@ impl HtmlGenerator {
         let card_contexts = self.create_card_contexts(cards)?;
         let context = self.create_template_context(title.to_string(), card_contexts);
         
-        let mut tera_context = tera::Context::new();
-        tera_context.insert("title", &context.title);
-        tera_context.insert("total_cards", &context.total_cards);
-        tera_context.insert("pages", &context.pages);
-        
-        let html = self.tera.render("cards.html", &tera_context)?;
+        let html = context.render()?;
         Ok(html)
     }
 
@@ -137,23 +116,11 @@ impl HtmlGenerator {
     /// # Returns
     /// 
     /// Complete template context
-    fn create_template_context(&self, title: String, cards: Vec<CardContext>) -> TemplateContext {
+    fn create_template_context(&self, title: String, cards: Vec<CardContext>) -> CardsTemplate {
         let total_cards = cards.len();
         let pages = cards.chunks(12).map(|chunk| chunk.to_vec()).collect();
-        TemplateContext { title, total_cards, pages }
+        CardsTemplate { title, total_cards, pages }
     }
-}
-
-/// Custom pluralize filter for Tera templates
-/// 
-/// Usage: {{ count | pluralize("singular", "plural") }}
-fn pluralize_filter(value: &Value, args: &HashMap<String, Value>) -> tera::Result<Value> {
-    let count = value.as_i64().unwrap_or(0);
-    let singular = args.get("singular").and_then(|v| v.as_str()).unwrap_or("item");
-    let plural = args.get("plural").and_then(|v| v.as_str()).unwrap_or("items");
-    
-    let result = if count == 1 { singular } else { plural };
-    to_value(result).map_err(tera::Error::from)
 }
 
 impl Default for HtmlGenerator {
