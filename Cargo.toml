@@ -37,6 +37,9 @@ base64 = "0.21"
 # HTML utilities
 html-escape = "0.2"
 
+# Templating
+tera = "1.20"
+
 # Utilities
 futures = "0.3"
 

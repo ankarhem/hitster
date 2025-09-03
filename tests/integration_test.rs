@@ -41,16 +41,16 @@ async fn test_full_workflow_with_valid_config() {
     assert!(!cards.is_empty(), "Playlist should contain at least one track");
 
     // Test HTML generation
-    let html_generator = HtmlGenerator::new();
-    let html_content = html_generator.build_html_content(cards.clone(), "Test Playlist");
+    let html_generator = HtmlGenerator::new().unwrap();
+    let html_content = html_generator.build_html_content(cards.clone(), "Test Playlist").unwrap();
     
     // Verify HTML content
     assert!(html_content.contains("<!DOCTYPE html>"));
     assert!(html_content.contains("Test Playlist"));
-    assert!(html_content.contains("tailwindcss"));
+    assert!(html_content.contains("songs"));
     
     // Verify at least one card is present
-    assert!(html_content.contains("<div class=\"card bg-white"));
+    assert!(html_content.contains("<div class=\"card\""));
     
     // Verify the first song is present
     if let Some(first_card) = cards.first() {
@@ -102,7 +102,7 @@ fn test_playlist_id_parsing() {
 
 #[tokio::test]
 async fn test_html_generator_basic() {
-    let html_generator = HtmlGenerator::new();
+    let html_generator = HtmlGenerator::new().unwrap();
     
     // Create test cards
     let cards = vec![
@@ -115,22 +115,22 @@ async fn test_html_generator_basic() {
     ];
     
     // Test HTML content generation
-    let html = html_generator.build_html_content(cards, "Test Playlist");
+    let html = html_generator.build_html_content(cards, "Test Playlist").unwrap();
     
     // Verify basic structure
     assert!(html.contains("<!DOCTYPE html>"));
     assert!(html.contains("<html"));
     assert!(html.contains("<head>"));
-    assert!(html.contains("<body class="));
+    assert!(html.contains("<body"));
     assert!(html.contains("Test Playlist"));
     assert!(html.contains("Test Song"));
     assert!(html.contains("Test Artist"));
     assert!(html.contains("2023"));
     
-    // Verify CSS is included
-    assert!(html.contains("tailwindcss"));
+    // Verify print optimization
     assert!(html.contains("@page"));
     assert!(html.contains(".card {"));
+    assert!(html.contains("1 songs"));
 }
 
 #[tokio::test]

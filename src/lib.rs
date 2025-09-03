@@ -32,7 +32,6 @@ pub mod spotify_service;
 pub mod html_generator;
 pub mod web_server;
 pub mod qr_generator;
-pub mod html_templates;
 
 pub use config::{Settings, ConfigError};
 pub use spotify_service::{SpotifyService, SongCard, PlaylistId};

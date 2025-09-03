@@ -1,13 +1,14 @@
 //! Web server for Hitster
 //! 
-//! This module provides a web interface for generating Spotify playlist cards.
-//! It serves HTML pages and handles playlist processing requests.
+//! This module provides a simplified web interface for generating Spotify playlist cards.
+//! It serves HTML cards directly without any welcome page or interactive elements.
 
 use anyhow::Result;
 use axum::{
     extract::{Path, State},
     response::{Html, IntoResponse},
-    routing::{get, Router},
+    routing::get,
+    Router,
 };
 use std::net::SocketAddr;
 use crate::{SpotifyService, HtmlGenerator, PlaylistId};
@@ -15,7 +16,7 @@ use tracing::{debug, info, error};
 
 /// Web server for Hitster application
 /// 
-/// Provides HTTP endpoints for the web interface and playlist processing
+/// Provides a single HTTP endpoint for generating playlist cards.
 #[derive(Clone)]
 pub struct WebServer {
     /// Spotify service for API interactions
@@ -30,11 +31,15 @@ impl WebServer {
     /// # Arguments
     /// 
     /// * `spotify_service` - Configured Spotify service instance
-    pub fn new(spotify_service: SpotifyService) -> Self {
-        Self {
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if HTML generator creation fails
+    pub fn new(spotify_service: SpotifyService) -> Result<Self> {
+        Ok(Self {
             spotify_service,
-            html_generator: HtmlGenerator::new(),
-        }
+            html_generator: HtmlGenerator::new()?,
+        })
     }
 
     /// Run the web server
@@ -52,7 +57,6 @@ impl WebServer {
         info!("Starting web server on port {}", port);
         
         let app = Router::new()
-            .route("/", get(root))
             .route("/playlist/:playlist_id", get(playlist_cards))
             .with_state(self.clone());
 
@@ -61,7 +65,6 @@ impl WebServer {
         
         info!("🚀 Web server running at http://localhost:{}", port);
         info!("📋 Endpoints:");
-        info!("   GET /                           - Welcome page");
         info!("   GET /playlist/<id>             - HTML cards for playlist");
         info!("   Example: http://localhost:{}/playlist/3vnwX8FuGWpGgQX4hBa8sE", port);
         
@@ -94,126 +97,11 @@ impl WebServer {
         let cards = self.spotify_service.get_playlist_tracks_by_id(playlist_id.clone()).await?;
         
         debug!("Generating HTML content for {} cards", cards.len());
-        let html = self.html_generator.build_html_content(cards, &title);
+        let html = self.html_generator.build_html_content(cards, &title)?;
         
         info!("Successfully generated HTML for playlist: {}", playlist_id);
         Ok(html)
     }
-}
-
-// Handler functions
-async fn root() -> Html<&'static str> {
-    Html(r#"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitster Cards</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <div class="max-w-2xl mx-auto">
-            <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">🎵 Hitster Cards</h1>
-            
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <h2 class="text-2xl font-semibold mb-4">Generate Cards from Spotify Playlist</h2>
-                <p class="text-gray-600 mb-4">
-                    Enter a Spotify playlist ID or URL to generate printable cards with QR codes.
-                </p>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label for="playlistInput" class="block text-sm font-medium text-gray-700 mb-2">
-                            Spotify Playlist ID or URL:
-                        </label>
-                        <input 
-                            type="text" 
-                            id="playlistInput" 
-                            placeholder="37i9dQZF1DXcBWIGoYBM5M or https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                    </div>
-                    
-                    <div>
-                        <label for="titleInput" class="block text-sm font-medium text-gray-700 mb-2">
-                            Custom Title (optional):
-                        </label>
-                        <input 
-                            type="text" 
-                            id="titleInput" 
-                            placeholder="My Awesome Playlist"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                    </div>
-                    
-                    <button 
-                        onclick="generateCards()" 
-                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                        Generate Cards
-                    </button>
-                </div>
-            </div>
-            
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 class="font-semibold text-blue-800 mb-2">How to use:</h3>
-                <ol class="list-decimal list-inside text-blue-700 space-y-1">
-                    <li>Find a Spotify playlist URL (e.g., from Spotify app)</li>
-                    <li>Enter the playlist ID or full URL above</li>
-                    <li>Click "Generate Cards" to create printable cards</li>
-                    <li>Print the page or save as PDF from your browser</li>
-                    <li>Each card contains a QR code that links to the song on Spotify</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        async function generateCards() {
-            const playlistInput = document.getElementById('playlistInput').value;
-            const titleInput = document.getElementById('titleInput').value;
-            
-            if (!playlistInput) {
-                alert('Please enter a playlist ID or URL');
-                return;
-            }
-            
-            // Extract playlist ID from URL if necessary
-            let playlistId = playlistInput;
-            if (playlistInput.includes('spotify.com/playlist/')) {
-                const match = playlistInput.match(/playlist\/([a-zA-Z0-9]+)/);
-                if (match) {
-                    playlistId = match[1];
-                }
-            }
-            
-            // Build URL with optional title parameter
-            let url = `/playlist/${playlistId}`;
-            if (titleInput) {
-                url += `?title=${encodeURIComponent(titleInput)}`;
-            }
-            
-            window.location.href = url;
-        }
-        
-        // Allow Enter key to generate cards
-        document.getElementById('playlistInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                generateCards();
-            }
-        });
-        
-        document.getElementById('titleInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                generateCards();
-            }
-        });
-    </script>
-</body>
-</html>
-    "#)
 }
 
 /// Playlist cards handler - serves HTML cards for a playlist
@@ -222,18 +110,93 @@ async fn playlist_cards(
     State(server): State<WebServer>,
 ) -> impl IntoResponse {
     debug!("Received playlist request for ID: {}", playlist_id);
-    let title = None;
     
-    match server.get_playlist_cards(&playlist_id, title).await {
+    match server.get_playlist_cards(&playlist_id, None).await {
         Ok(html) => {
             info!("Successfully served playlist: {}", playlist_id);
             Html(html).into_response()
         },
         Err(e) => {
             error!("Failed to serve playlist {}: {}", playlist_id, e);
-            let error_html = crate::html_templates::error_template(&e.to_string());
+            let error_html = create_error_page(&e.to_string());
             Html(error_html).into_response()
         }
     }
 }
 
+/// Create a simple error page
+fn create_error_page(error_message: &str) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Hitster Cards</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f8f9fa;
+            color: #333;
+        }}
+        .error-container {{
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }}
+        h1 {{
+            color: #dc3545;
+            margin-bottom: 20px;
+        }}
+        .error-message {{
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }}
+        .back-link {{
+            display: inline-block;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }}
+        .back-link:hover {{
+            text-decoration: underline;
+        }}
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>❌ Error</h1>
+        <p>Sorry, we couldn't generate the playlist cards.</p>
+        <div class="error-message">{}</div>
+        <p>Please check the playlist ID and try again.</p>
+        <a href="/" class="back-link">← Go back</a>
+    </div>
+</body>
+</html>"#,
+        error_message
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_error_page() {
+        let error_html = create_error_page("Test error message");
+        assert!(error_html.contains("Test error message"));
+        assert!(error_html.contains("❌ Error"));
+        assert!(error_html.contains("Sorry, we couldn't generate"));
+    }
+}

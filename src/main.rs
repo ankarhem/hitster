@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     tracing::info!("Spotify service initialized");
     
     tracing::debug!("Starting web server...");
-    let web_server = WebServer::new(spotify_service);
+    let web_server = WebServer::new(spotify_service)?;
     web_server.run(3000).await?;
     
     Ok(())
