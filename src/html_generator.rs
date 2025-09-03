@@ -7,6 +7,8 @@ use crate::SongCard;
 use crate::qr_generator;
 use anyhow::Result;
 use serde::Serialize;
+use tera::{Value, to_value};
+use std::collections::HashMap;
 
 /// Template context for card generation
 #[derive(Debug, Clone, Serialize)]
@@ -54,11 +56,15 @@ impl HtmlGenerator {
         let mut tera = tera::Tera::default();
         
         // Add the templates
+        tera.add_template_file("templates/base.html.tera", Some("base.html"))?;
         tera.add_template_file("templates/card_macros.html", Some("card_macros.html"))?;
         tera.add_template_file("templates/cards.html.tera", Some("cards.html"))?;
         
         // Autoescape on HTML templates
         tera.autoescape_on(vec![".html"]);
+        
+        // Register custom filters
+        tera.register_filter("pluralize", pluralize_filter);
         
         Ok(Self { tera })
     }
@@ -138,6 +144,18 @@ impl HtmlGenerator {
     }
 }
 
+/// Custom pluralize filter for Tera templates
+/// 
+/// Usage: {{ count | pluralize("singular", "plural") }}
+fn pluralize_filter(value: &Value, args: &HashMap<String, Value>) -> tera::Result<Value> {
+    let count = value.as_i64().unwrap_or(0);
+    let singular = args.get("singular").and_then(|v| v.as_str()).unwrap_or("item");
+    let plural = args.get("plural").and_then(|v| v.as_str()).unwrap_or("items");
+    
+    let result = if count == 1 { singular } else { plural };
+    to_value(result).map_err(tera::Error::from)
+}
+
 impl Default for HtmlGenerator {
     fn default() -> Self {
         Self::new().expect("Failed to create HTML generator")
@@ -207,6 +225,6 @@ mod tests {
         assert!(html.contains("Test Song"));
         assert!(html.contains("Test Artist"));
         assert!(html.contains("2023"));
-        assert!(html.contains("songs"));
+        assert!(html.contains("1 song"));
     }
 }

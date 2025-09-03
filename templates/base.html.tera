@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hitster Cards{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .line-clamp-2 {
+                @apply overflow-hidden;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+            }
+            .line-clamp-3 {
+                @apply overflow-hidden;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 3;
+            }
+        }
+    </style>
+    <style>
+        @page {
+            size: 210mm 297mm;
+            margin: 0;
+        }
+        
+        @media print {
+            .print\\:hidden {
+                display: none !important;
+            }
+            
+            .print\\:card-grid {
+                display: grid !important;
+                grid-template-columns: repeat(3, 70mm) !important;
+                grid-template-rows: repeat(4, 70mm) !important;
+                gap: 0 !important;
+                width: 210mm !important;
+                height: 280mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+            }
+            
+            .print\\:card {
+                width: 70mm !important;
+                height: 70mm !important;
+                border: 1px solid black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                break-inside: avoid !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+            
+            .print\\:qr-code {
+                width: 50mm !important;
+                height: 50mm !important;
+            }
+            
+            .print\\:text-xl {
+                font-size: 24pt !important;
+            }
+            
+            .print\\:text-sm {
+                font-size: 10pt !important;
+            }
+            
+            .print\\:text-xs {
+                font-size: 8pt !important;
+            }
+            
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                width: 210mm !important;
+                min-height: 297mm !important;
+                overflow: hidden !important;
+            }
+            
+            .print\\:break-after-page {
+                break-after: page !important;
+            }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-100">
+    {% block content %}{% endblock %}
+</body>
+</html>
