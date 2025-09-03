@@ -1,7 +1,5 @@
 {% extends "base.html" %}
 
-{% import "macros.html" as macros %}
-
 {% block title %}Hitster Cards - {{ title }}{% endblock %}
 
 {% block head %}
@@ -64,26 +62,21 @@
 </div>
 
 {# Front Pages (QR codes only) #}
-{%- if !pages.is_empty() -%}
+{%- if cards.len() > 0 -%}
 <div class="print:hidden mb-8 text-center">
     <h3 class="text-lg font-semibold text-gray-700 mb-2">Front Pages (QR Codes)</h3>
     <p class="text-sm text-gray-500">These will be printed first - one side only</p>
 </div>
 
-{%- for page in pages -%}
+{# Calculate how many front cards we have #}
+{%- let front_count = cards.len() / 2 -%}
+{%- let front_cards = cards[0..front_count] -%}
+
+{%- for chunk in front_cards.chunks(12) -%}
 <div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8 print:card-grid" 
      style="width: 210mm; height: 280mm;">
-      {%- for card in page -%}
-    <div class="flex items-center justify-center w-16 h-16 print:qr-code border-2 border-gray-300 rounded">
-        {%- if card.qr_data_url.is_empty() -%}
-        <div class="text-center text-gray-400">
-            <div class="text-2xl mb-1">♪</div>
-            <div class="text-xs">QR unavailable</div>
-        </div>
-        {%- else -%}
-        <img src="{{ card.qr_data_url }}" alt="QR Code" class="w-full h-full">
-        {%- endif -%}
-    </div>
+    {%- for card in chunk -%}
+    {{ card }}
     {%- endfor -%}
 </div>
 {%- endfor -%}
@@ -91,23 +84,14 @@
 
 {# Back Pages (Song details - hidden in view mode) #}
 <div class="hidden print:block">
-    {%- for page in pages -%}
+    {# Calculate back cards and group into pages #}
+    {%- let back_count = cards.len() / 2 -%}
+    {%- let back_cards = cards[back_count..] -%}
+    
+    {%- for chunk in back_cards.chunks(12) -%}
     <div class="print:card-grid print:break-after-page">
-        {%- for card in page -%}
-        <div class="flex flex-col p-3 w-full h-full border border-gray-300 rounded">
-            <h3 class="font-bold leading-tight mb-2 print:text-sm line-clamp-2" title="{{ card.title }}">
-                {{ card.title }}
-            </h3>
-            <p class="text-gray-600 leading-tight mb-4 print:text-xs line-clamp-3" title="{{ card.artist }}">
-                {{ card.artist }}
-            </p>
-            
-            <div class="mt-auto text-center">
-                <span class="font-bold print:text-xl">
-                    {{ card.year }}
-                </span>
-            </div>
-        </div>
+        {%- for card in chunk -%}
+        {{ card }}
         {%- endfor -%}
     </div>
     {%- endfor -%}
