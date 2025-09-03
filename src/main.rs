@@ -9,6 +9,7 @@ async fn main() -> Result<()> {
     
     let settings = hitster::Settings::new()?;
     let spotify_service = SpotifyService::new(&settings).await?;
+    
     let hitster_service = HitsterService::new(spotify_service)?;
     
     let web_server = WebServer::new(hitster_service);

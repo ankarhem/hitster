@@ -7,8 +7,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use crate::application::HitsterService;
-use crate::templates::{CardsTemplate, CardTemplate};
-use crate::qr_generator;
+use crate::web::{templates::{CardsTemplate, CardTemplate}, qr_code};
 use askama::Template;
 use tracing::{info, error, instrument};
 
@@ -97,7 +96,7 @@ fn create_card_templates(tracks: Vec<crate::application::models::Track>) -> Resu
     
     // First, create all front cards
     for track in &tracks {
-        let qr_data_url = qr_generator::generate_qr_data_url(&track.spotify_url)
+        let qr_data_url = qr_code::generate_qr_data_url(&track.spotify_url)
             .unwrap_or_default();
         
         all_cards.push(CardTemplate::Front { qr_data_url });

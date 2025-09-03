@@ -42,9 +42,13 @@ askama = "0.14"
 
 # Utilities
 futures = "0.3"
+futures-util = "0.3"
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[package.metadata.askama]
+templates = "src/web/templates"
 
 [dev-dependencies]

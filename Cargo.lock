@@ -691,6 +691,7 @@ dependencies = [
  "base64 0.21.7",
  "dotenv",
  "futures",
+ "futures-util",
  "html-escape",
  "image 0.24.9",
  "png",
