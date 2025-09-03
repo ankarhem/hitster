@@ -21,7 +21,16 @@
     {%- for page in pages -%}
     <div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8 print:card-grid" style="width: 210mm; height: 280mm;">
         {%- for card in page -%}
-        {{ macros::card_front(card=card) }}
+        {{ macros::card(content="
+    {%- if card.qr_data_url -%}
+    <img src='" ~ card.qr_data_url ~ "' alt='QR Code' class='w-24 h-24 print:qr-code'>
+    {%- else -%}
+    <div class='text-center text-gray-400'>
+        <div class='text-2xl mb-1'>♪</div>
+        <div class='text-xs'>QR unavailable</div>
+    </div>
+    {%- endif -%}
+") }}
         {%- endfor -%}
     </div>
     {%- endfor -%}
@@ -32,7 +41,22 @@
         {%- for page in pages -%}
         <div class="print:card-grid print:break-after-page">
             {%- for card in page -%}
-            {{ macros::card_back(card=card) }}
+            {{ macros::card(content="
+<div class='flex flex-col p-3 w-full h-full'>
+    <h3 class='font-bold leading-tight mb-2 print:text-sm line-clamp-2' title='" ~ card.title ~ "'>
+        " ~ card.title ~ "
+    </h3>
+    <p class='text-gray-600 leading-tight mb-4 print:text-xs line-clamp-3' title='" ~ card.artist ~ "'>
+        " ~ card.artist ~ "
+    </p>
+    
+    <div class='mt-auto text-center'>
+        <span class='font-bold print:text-xl'>
+            " ~ card.year ~ "
+        </span>
+    </div>
+</div>
+", extra_classes="flex flex-col p-3") }}
             {%- endfor -%}
         </div>
         {%- endfor -%}
