@@ -1,0 +1,33 @@
+{% macro card(content, extra_classes="") -%}
+<div class="flex items-center justify-center w-16 h-16 print:qr-code border-2 border-gray-300 rounded {{ extra_classes }}">
+    {{ content }}
+</div>
+{%- endmacro %}
+
+{% macro card_back(title, artist, year) -%}
+<div class="flex flex-col p-3 w-full h-full border border-gray-300 rounded">
+    <h3 class="font-bold leading-tight mb-2 print:text-sm line-clamp-2" title="{{ title }}">
+        {{ title }}
+    </h3>
+    <p class="text-gray-600 leading-tight mb-4 print:text-xs line-clamp-3" title="{{ artist }}">
+        {{ artist }}
+    </p>
+    
+    <div class="mt-auto text-center">
+        <span class="font-bold print:text-xl">
+            {{ year }}
+        </span>
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro qr_code(qr_data_url) -%}
+{% if qr_data_url.is_empty() -%}
+<div class="text-center text-gray-400">
+    <div class="text-2xl mb-1">♪</div>
+    <div class="text-xs">QR unavailable</div>
+</div>
+{%- else -%}
+<img src="{{ qr_data_url }}" alt="QR Code" class="w-full h-full">
+{%- endif %}
+{%- endmacro %}
