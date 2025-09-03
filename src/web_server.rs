@@ -7,7 +7,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use crate::application::HitsterService;
-use tracing::{debug, info, error};
+use tracing::{info, error};
 
 #[derive(Clone)]
 pub struct WebServer {
@@ -20,8 +20,6 @@ impl WebServer {
     }
 
     pub async fn run(&self, port: u16) -> Result<()> {
-        info!("Starting web server on port {}", port);
-        
         let app = Router::new()
             .route("/playlist/:playlist_id", get(playlist_cards))
             .with_state(self.clone());
@@ -43,11 +41,9 @@ async fn playlist_cards(
     Path(playlist_id): Path<String>,
     State(server): State<WebServer>,
 ) -> impl IntoResponse {
-    debug!("Received playlist request for ID: {}", playlist_id);
-    
     match server.hitster_service.generate_playlist_cards(&playlist_id, None).await {
         Ok(html) => {
-            info!("Successfully served playlist: {}", playlist_id);
+            info!("Served playlist: {}", playlist_id);
             Html(html).into_response()
         },
         Err(e) => {

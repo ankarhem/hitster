@@ -2,7 +2,7 @@ use crate::infrastructure::spotify_service::SpotifyService;
 use crate::application::models::PlaylistId;
 use crate::HtmlGenerator;
 use anyhow::Result;
-use tracing::{debug, info};
+use tracing::info;
 
 #[derive(Clone)]
 pub struct HitsterService {
@@ -19,17 +19,12 @@ impl HitsterService {
     }
 
     pub async fn generate_playlist_cards(&self, playlist_id: &str, title: Option<String>) -> Result<String> {
-        debug!("Processing playlist request for ID: {}", playlist_id);
         let playlist_id: PlaylistId = playlist_id.parse()?;
-        
-        debug!("Fetching playlist data");
         let playlist = self.spotify_service.get_playlist(playlist_id.clone()).await?;
         let title = title.unwrap_or_else(|| playlist.name);
-        
-        debug!("Generating HTML content for {} tracks", playlist.tracks.len());
         let html = self.html_generator.build_html_content(playlist.tracks, &title)?;
         
-        info!("Successfully generated HTML for playlist: {}", playlist_id);
+        info!("Generated HTML for playlist: {}", playlist_id);
         Ok(html)
     }
 }

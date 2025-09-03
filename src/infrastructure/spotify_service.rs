@@ -7,7 +7,7 @@ use rspotify::{
 use crate::application::models::{Playlist, PlaylistId, Track};
 use crate::Settings;
 use futures::StreamExt;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
     type Error = anyhow::Error;
@@ -24,11 +24,8 @@ pub struct SpotifyService {
 
 impl SpotifyService {
     pub async fn new(settings: &Settings) -> Result<Self> {
-        debug!("Creating Spotify service instance");
         let creds = Credentials::new(&settings.client_id, &settings.client_secret);
-
         let spotify = ClientCredsSpotify::new(creds);
-        debug!("Requesting Spotify access token");
         spotify.request_token().await?;
         info!("Spotify authentication successful");
 
@@ -36,12 +33,9 @@ impl SpotifyService {
     }
 
     pub async fn get_playlist(&self, playlist_id: PlaylistId) -> Result<Playlist> {
-        info!("Fetching playlist: {}", playlist_id);
         let rspotify_playlist_id: RspotifyPlaylistId<'static> = playlist_id.clone().try_into()?;
         
-        debug!("Fetching playlist metadata");
         let playlist = self.client.playlist(rspotify_playlist_id, None, None).await?;
-        debug!("Playlist name: {}", playlist.name);
         
         let mut tracks_stream = self
             .client
@@ -62,18 +56,14 @@ impl SpotifyService {
                     .unwrap_or("Unknown")
                     .to_string();
                 
-                let title = track.name.clone();
                 tracks.push(Track {
-                    title: title.clone(),
+                    title: track.name.clone(),
                     artist: artist_names.join(", "),
                     year,
                     spotify_url: track.external_urls.get("spotify").cloned().unwrap_or_default(),
                 });
-                
-                debug!("Processed track: {} - {}", title, artist_names.join(", "));
             } else {
                 skipped_tracks += 1;
-                debug!("Skipping non-track item");
             }
         }
         
