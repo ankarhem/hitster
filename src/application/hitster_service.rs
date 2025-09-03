@@ -1,13 +1,11 @@
 use crate::infrastructure::spotify_service::SpotifyService;
-use crate::application::models::PlaylistId;
-use crate::HtmlGenerator;
+use crate::application::models::{Playlist, PlaylistId};
 use anyhow::Result;
 use tracing::{info, instrument};
 
 #[derive(Clone)]
 pub struct HitsterService {
     spotify_service: SpotifyService,
-    html_generator: HtmlGenerator,
 }
 
 impl HitsterService {
@@ -15,19 +13,16 @@ impl HitsterService {
     pub fn new(spotify_service: SpotifyService) -> Result<Self> {
         Ok(Self {
             spotify_service,
-            html_generator: HtmlGenerator::new()?,
         })
     }
 
-    #[instrument(skip(self))]
-    pub async fn generate_playlist_cards(&self, playlist_id: &str, title: Option<String>) -> Result<String> {
+    #[instrument(skip(self), fields(playlist_id))]
+    pub async fn get_playlist_by_id(&self, playlist_id: &str) -> Result<Playlist> {
         let playlist_id: PlaylistId = playlist_id.parse()?;
         let playlist = self.spotify_service.get_playlist(playlist_id.clone()).await?;
-        let title = title.unwrap_or_else(|| playlist.name);
-        let html = self.html_generator.build_html_content(playlist.tracks, &title)?;
         
-        info!("Generated HTML for playlist: {}", playlist_id);
-        Ok(html)
+        info!("Retrieved playlist: {}", playlist_id);
+        Ok(playlist)
     }
 }
 

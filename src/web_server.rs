@@ -7,6 +7,9 @@ use axum::{
 };
 use std::net::SocketAddr;
 use crate::application::HitsterService;
+use crate::templates::{CardsTemplate, CardTemplate};
+use crate::qr_generator;
+use askama::Template;
 use tracing::{info, error, instrument};
 
 #[derive(Clone)]
@@ -44,10 +47,24 @@ async fn playlist_cards(
     Path(playlist_id): Path<String>,
     State(server): State<WebServer>,
 ) -> impl IntoResponse {
-    match server.hitster_service.generate_playlist_cards(&playlist_id, None).await {
-        Ok(html) => {
-            info!("Served playlist: {}", playlist_id);
-            Html(html).into_response()
+    match server.hitster_service.get_playlist_by_id(&playlist_id).await {
+        Ok(playlist) => {
+            match build_html_content(playlist.tracks, &playlist.name) {
+                Ok(html) => {
+                    info!("Served playlist: {}", playlist_id);
+                    Html(html).into_response()
+                },
+                Err(e) => {
+                    error!("Failed to generate HTML for playlist {}: {}", playlist_id, e);
+                    let error_html = "<html>
+                        <head><title>Error</title></head>
+                        <body>
+                            <h1>Error generating playlist cards</h1>
+                        </body>
+                      </html>";
+                    Html(error_html).into_response()
+                }
+            }
         },
         Err(e) => {
             error!("Failed to serve playlist {}: {}", playlist_id, e);
@@ -60,4 +77,40 @@ async fn playlist_cards(
             Html(error_html).into_response()
         }
     }
+}
+
+fn build_html_content(tracks: Vec<crate::application::models::Track>, title: &str) -> Result<String> {
+    let total_cards = tracks.len();
+    let card_templates = create_card_templates(tracks)?;
+    
+    let template = CardsTemplate {
+        title: title.to_string(),
+        total_cards,
+        cards: card_templates,
+    };
+    
+    Ok(template.render()?)
+}
+
+fn create_card_templates(tracks: Vec<crate::application::models::Track>) -> Result<Vec<CardTemplate>> {
+    let mut all_cards = Vec::new();
+    
+    // First, create all front cards
+    for track in &tracks {
+        let qr_data_url = qr_generator::generate_qr_data_url(&track.spotify_url)
+            .unwrap_or_default();
+        
+        all_cards.push(CardTemplate::Front { qr_data_url });
+    }
+    
+    // Then, create all back cards
+    for track in tracks {
+        all_cards.push(CardTemplate::Back {
+            title: html_escape::encode_text(&track.title).to_string(),
+            artist: html_escape::encode_text(&track.artist).to_string(),
+            year: track.year,
+        });
+    }
+    
+    Ok(all_cards)
 }
