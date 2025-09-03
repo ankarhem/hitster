@@ -1,29 +1,8 @@
-//! QR code generation utilities
-//! 
-//! This module handles the generation of QR codes as base64-encoded PNG images
-//! for embedding in HTML documents.
-
 use anyhow::Result;
 use base64::Engine;
 use qrcode::QrCode;
 use image::{ImageBuffer, Luma};
 
-/// Generate a QR code as a base64-encoded data URL
-/// 
-/// This function creates a QR code for the given URL and converts it to
-/// a base64-encoded PNG image suitable for embedding in HTML.
-/// 
-/// # Arguments
-/// 
-/// * `url` - The URL to encode in the QR code
-/// 
-/// # Returns
-/// 
-/// A base64 data URL string (e.g., "data:image/png;base64,...")
-/// 
-/// # Errors
-/// 
-/// Returns an error if QR code generation or PNG encoding fails
 pub fn generate_qr_data_url(url: &str) -> Result<String> {
     // Generate QR code as character-based art first
     let qr = QrCode::new(url)?;
