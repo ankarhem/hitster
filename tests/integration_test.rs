@@ -50,7 +50,8 @@ async fn test_full_workflow_with_valid_config() {
     assert!(html_content.contains("songs"));
     
     // Verify at least one card is present
-    assert!(html_content.contains("<div class=\"card\""));
+    assert!(html_content.contains("border border-black bg-white"));
+    assert!(html_content.contains("grid grid-cols-2"));
     
     // Verify the first song is present
     if let Some(first_card) = cards.first() {
@@ -127,10 +128,10 @@ async fn test_html_generator_basic() {
     assert!(html.contains("Test Artist"));
     assert!(html.contains("2023"));
     
-    // Verify print optimization
+    // Verify print optimization and Tailwind usage
     assert!(html.contains("@page"));
-    assert!(html.contains(".card {"));
-    assert!(html.contains("1 songs"));
+    assert!(html.contains("tailwindcss"));
+    assert!(html.contains("grid grid-cols-2"));
 }
 
 #[tokio::test]

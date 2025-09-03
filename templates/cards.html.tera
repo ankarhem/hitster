@@ -4,107 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hitster Cards - {{ title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Print optimization */
+        /* Print-specific customizations that work with Tailwind */
         @page {
             size: A4;
             margin: 8mm;
         }
         
-        /* Reset and base styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: white;
-            color: #000;
-            line-height: 1.4;
-        }
-        
-        /* Card grid layout */
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 5mm;
-            margin: 0;
-            padding: 0;
-        }
-        
-        /* Individual card styling */
+        /* Custom card dimensions and print optimizations */
         .card {
             width: 90mm;
             height: 55mm;
-            border: 1px solid #000;
-            padding: 4mm;
-            display: flex;
-            flex-direction: column;
             page-break-inside: avoid;
             break-inside: avoid;
-            background: white;
-        }
-        
-        /* Card content sections */
-        .card-header {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            margin-bottom: 3mm;
-        }
-        
-        .song-title {
-            font-size: 11pt;
-            font-weight: bold;
-            margin-bottom: 2mm;
-            line-height: 1.2;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-        
-        .song-artist {
-            font-size: 9pt;
-            margin-bottom: 1mm;
-            line-height: 1.2;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-        
-        .song-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: auto;
-        }
-        
-        .song-year {
-            font-size: 8pt;
-            background: #f0f0f0;
-            padding: 1mm 2mm;
-            border-radius: 2mm;
-        }
-        
-        .spotify-label {
-            font-size: 8pt;
-            color: #1db954;
-            font-weight: 500;
-        }
-        
-        /* QR code section */
-        .qr-section {
-            border-top: 1px solid #e0e0e0;
-            padding-top: 3mm;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 20mm;
         }
         
         .qr-code {
@@ -112,89 +25,75 @@
             height: 18mm;
         }
         
-        .qr-fallback {
-            text-align: center;
-            color: #999;
+        /* Text truncation for long titles/artists */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
         
-        .qr-fallback-icon {
-            font-size: 24pt;
-            margin-bottom: 1mm;
-        }
-        
-        .qr-fallback-text {
-            font-size: 6pt;
-        }
-        
-        /* Footer */
-        .card-footer {
-            text-align: center;
-            font-size: 6pt;
-            color: #666;
-            margin-top: 2mm;
-        }
-        
-        /* Page header */
-        .page-header {
-            text-align: center;
-            margin-bottom: 10mm;
-            page-break-after: avoid;
-        }
-        
-        .page-title {
-            font-size: 16pt;
-            font-weight: bold;
-            margin-bottom: 2mm;
-        }
-        
-        .page-subtitle {
-            font-size: 10pt;
-            color: #666;
-        }
-        
-        /* Print-specific optimizations */
+        /* Print media adjustments */
         @media print {
             body {
                 margin: 0;
                 padding: 0;
+                background: white;
             }
             
-            .card-grid {
-                margin: 0;
+            /* Remove any interactive elements in print */
+            .no-print {
+                display: none !important;
             }
         }
     </style>
 </head>
-<body>
-    <div class="page-header">
-        <h1 class="page-title">Hitster Cards</h1>
-        <p class="page-subtitle">{{ title }} • {{ cards|length }} songs</p>
+<body class="bg-white text-black font-sans leading-normal">
+    <!-- Page Header -->
+    <div class="text-center mb-8 break-after-avoid">
+        <h1 class="text-2xl font-bold mb-2">Hitster Cards</h1>
+        <p class="text-sm text-gray-600">{{ title }} • {{ cards|length }} songs</p>
     </div>
     
-    <div class="card-grid">
+    <!-- Cards Grid -->
+    <div class="grid grid-cols-2 gap-[5mm] max-w-none">
         {% for card in cards %}
-        <div class="card">
-            <div class="card-header">
-                <h3 class="song-title" title="{{ card.title }}">{{ card.title }}</h3>
-                <p class="song-artist" title="{{ card.artist }}">{{ card.artist }}</p>
-                <div class="song-meta">
-                    <span class="song-year">{{ card.year }}</span>
-                    <span class="spotify-label">♫ Spotify</span>
+        <div class="card border border-black bg-white p-[4mm] flex flex-col">
+            <!-- Card Content -->
+            <div class="flex-1 flex flex-col justify-between mb-[3mm]">
+                <div>
+                    <h3 class="text-xs font-bold mb-[2mm] leading-tight line-clamp-2" title="{{ card.title }}">
+                        {{ card.title }}
+                    </h3>
+                    <p class="text-[9pt] mb-[1mm] leading-tight line-clamp-2" title="{{ card.artist }}">
+                        {{ card.artist }}
+                    </p>
+                </div>
+                
+                <div class="flex justify-between items-center mt-auto">
+                    <span class="text-[8pt] bg-gray-100 px-[2mm] py-[1mm] rounded-full">
+                        {{ card.year }}
+                    </span>
+                    <span class="text-[8pt] text-green-600 font-medium">
+                        ♫ Spotify
+                    </span>
                 </div>
             </div>
             
-            <div class="qr-section">
+            <!-- QR Code Section -->
+            <div class="border-t border-gray-200 pt-[3mm] flex items-center justify-center h-[20mm]">
                 {% if card.qr_data_url %}
                 <img src="{{ card.qr_data_url }}" alt="QR Code" class="qr-code">
                 {% else %}
-                <div class="qr-fallback">
-                    <div class="qr-fallback-icon">♪</div>
-                    <div class="qr-fallback-text">QR unavailable</div>
+                <div class="text-center text-gray-400">
+                    <div class="text-2xl mb-1">♪</div>
+                    <div class="text-[6pt]">QR unavailable</div>
                 </div>
                 {% endif %}
             </div>
             
-            <div class="card-footer">
+            <!-- Card Footer -->
+            <div class="text-center text-[6pt] text-gray-500 mt-[2mm]">
                 Scan to play on Spotify
             </div>
         </div>
