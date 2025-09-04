@@ -38,13 +38,9 @@ impl SpotifyService {
                 if let Ok(track) = track.try_into() {
                     tracks.push(track);
                     continue;
-                } else {
-                    skipped_tracks += 1;
-                    continue;
                 }
-            } else {
-                skipped_tracks += 1;
             }
+            skipped_tracks += 1;
         }
 
         if skipped_tracks > 0 {

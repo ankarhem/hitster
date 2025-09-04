@@ -1,11 +1,8 @@
 use anyhow::Result;
-use futures::StreamExt;
 use rspotify::{
-    model::{FullPlaylist, FullTrack, PlayableItem, PlaylistId as RspotifyPlaylistId},
-    prelude::BaseClient,
-    ClientCredsSpotify,
+    model::{FullTrack, PlaylistId as RspotifyPlaylistId},
 };
-use crate::application::models::{Playlist, PlaylistId, Track};
+use crate::application::models::{PlaylistId, Track};
 use std::str::FromStr;
 
 impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
