@@ -1,4 +1,5 @@
 use crate::CardTemplate;
+use crate::infrastructure::Job;
 
 /// Template context for the cards page
 #[derive(askama::Template, Debug)]
@@ -10,4 +11,10 @@ pub struct CardsTemplate {
     pub total_cards: usize,
     /// Cards to render (front and back sides)
     pub cards: Vec<CardTemplate>,
+    /// Job information for PDF generation
+    pub job: Option<Job>,
+    /// Helper fields for template
+    pub job_id: i64,
+    pub playlist_id: i64,
+    pub has_completed_job: bool,
 }

@@ -1,5 +1,7 @@
 use anyhow::Result;
-use hitster::{SpotifyService, HitsterService, WebServer};
+use hitster::{SpotifyService, HitsterService, WebServer, Database};
+use hitster::application::JobService;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -12,7 +14,13 @@ async fn main() -> Result<()> {
     
     let hitster_service = HitsterService::new(spotify_service)?;
     
-    let web_server = WebServer::new(hitster_service);
+    // Initialize database
+    let database = Arc::new(Database::new(&settings.database_url).await?);
+    
+    // Initialize job service
+    let job_service = JobService::new(database.clone());
+    
+    let web_server = WebServer::new(hitster_service, (*database).clone(), job_service);
     web_server.run(3000).await?;
     
     Ok(())

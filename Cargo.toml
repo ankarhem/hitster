@@ -49,7 +49,18 @@ futures-util = "0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid", "migrate"] }
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4"] }
+
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+
 [package.metadata.askama]
 templates = "src/web/templates"
 
 [dev-dependencies]
+tempfile = "3.0"
+sqlx-cli = { version = "0.7", default-features = false, features = ["native-tls", "sqlite"] }

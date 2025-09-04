@@ -8,3 +8,5 @@ pub mod cards;
 pub use cards::CardsTemplate;
 pub mod error;
 pub use error::ErrorTemplate;
+pub mod index;
+pub use index::IndexTemplate;

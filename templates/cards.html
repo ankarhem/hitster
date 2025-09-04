@@ -4,29 +4,310 @@
 
 {% block head %}
 <style>
-    @page {
-        size: A4;
-        margin: 0;
+    .fade-out {
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+    }
+    .fade-in {
+        opacity: 1;
+        transition: opacity 0.5s ease-in-out;
+    }
+    .spotify-green {
+        background-color: #1DB954;
+    }
+    .spotify-green:hover {
+        background-color: #1ed760;
+    }
+    .spotify-green:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+    .loading-spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #1DB954;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .preview-section {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .preview-item {
+        transition: background-color 0.2s ease;
+    }
+    .preview-item:hover {
+        background-color: #f8f9fa;
     }
 </style>
 {% endblock %}
 
 {% block body %}
-<header class="bg-blue-50 border-b border-blue-200 p-4 text-center">
-    <h2 class="text-lg font-semibold text-blue-800 mb-1">Hitster Cards - {{ title }}</h2>
-    <p class="text-sm text-blue-600">
-        {{ total_cards }} {% if total_cards == 1 %}song{% else %}songs{% endif %}
-        • Print or save as PDF for dual-sided 70×70mm cards
-    </p>
-    <p class="text-xs text-blue-500 mt-1">A4 paper • 3×4 grid • Front pages first, then back sides</p>
-</header>
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+                    <p class="text-gray-600 mt-1">{{ total_cards }} cards ready to generate</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button 
+                        id="generate-btn"
+                        onclick="startGeneration()"
+                        class="spotify-green text-white font-semibold py-2 px-6 rounded-lg hover:shadow-lg transition duration-200 flex items-center space-x-2"
+                    >
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>Generate PDFs</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-{%- for chunk in cards.chunks(12) -%}
-<div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8">
-    {%- for card in chunk -%}
-    {{ card | safe }}
-    {%- endfor -%}
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Preview Section -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-sm border">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">Song Preview</h2>
+                        <p class="text-sm text-gray-600 mt-1">First 20 songs from your playlist</p>
+                    </div>
+                    <div class="preview-section">
+                        <div class="divide-y divide-gray-200">
+                            {% for card in cards %}
+    {% if loop.index <= 20 %}
+                            <div class="preview-item px-6 py-4 flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="flex-shrink-0 w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                                        <span class="text-xs font-medium text-gray-600">{{ loop.index }}</span>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-sm font-medium text-gray-900">{{ card.title }}</h3>
+                                        <p class="text-sm text-gray-600">{{ card.artist }} • {{ card.year }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <img src="{{ card.qr_code }}" alt="QR Code" class="w-8 h-8 rounded">
+                                </div>
+                            </div>
+    {% endif %}
+    {% endfor %}
+                            {% if cards.len() > 20 %}
+                            <div class="px-6 py-4 text-center">
+                                <p class="text-sm text-gray-500">... and {{ cards.len() - 20 }} more songs</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-sm border">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">Download PDFs</h2>
+                        <p class="text-sm text-gray-600 mt-1">Generate and download card files</p>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <!-- Status Display -->
+                        <div id="status-section" class="hidden">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div class="flex items-center space-x-3">
+                                    <div class="loading-spinner"></div>
+                                    <div>
+                                        <p class="text-sm font-medium text-blue-900">Generating PDFs...</p>
+                                        <p class="text-xs text-blue-700">This may take a few moments</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Download Buttons -->
+                        <div class="space-y-3">
+                            <button 
+                                id="download-front-btn"
+                                onclick="downloadPDF('front')"
+                                disabled
+                                class="w-full bg-gray-100 text-gray-400 font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
+                            >
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                                <span>Download Front Cards</span>
+                            </button>
+                            
+                            <button 
+                                id="download-back-btn"
+                                onclick="downloadPDF('back')"
+                                disabled
+                                class="w-full bg-gray-100 text-gray-400 font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
+                            >
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                                <span>Download Back Cards</span>
+                            </button>
+                        </div>
+
+                        <!-- Info -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="text-sm font-medium text-gray-900 mb-2">What's included:</h3>
+                            <ul class="text-xs text-gray-600 space-y-1">
+                                <li>• Front cards: Song info with QR codes</li>
+                                <li>• Back cards: Uniform card backs</li>
+                                <li>• Optimized for printing on A4 paper</li>
+                                <li>• 12 cards per page (3x4 grid)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Cards Display (initially hidden) -->
+        <div id="full-cards" class="mt-8 fade-out">
+            <div class="bg-white rounded-lg shadow-sm border">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">All Cards</h2>
+                    <p class="text-sm text-gray-600 mt-1">Complete card layout for printing</p>
+                </div>
+                <div class="p-6">
+                    {%- for chunk in cards.chunks(12) -%}
+                    <div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center bg-gray-50 mb-8 p-6 rounded-lg">
+                        {%- for card in chunk -%}
+                        {{ card | safe }}
+                        {%- endfor -%}
+                    </div>
+                    {%- endfor -%}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-{%- endfor -%}
 
+<script>
+    let jobId = null;
+    let pollInterval = null;
+
+    // Check if we already have a completed job
+    {% if has_completed_job %}
+    document.addEventListener('DOMContentLoaded', function() {
+        enableDownloadButtons();
+    });
+    {% endif %}
+
+    function startGeneration() {
+        const generateBtn = document.getElementById('generate-btn');
+        const statusSection = document.getElementById('status-section');
+        
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+        statusSection.classList.remove('hidden');
+        
+        // Start fade out animation
+        const fullCards = document.getElementById('full-cards');
+        fullCards.classList.add('fade-out');
+        
+        // Call API to start generation
+        fetch('/api/generate/{{ job_id }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                playlist_id: {{ playlist_id }}
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            jobId = data.job_id;
+            startPolling();
+        })
+        .catch(error => {
+            console.error('Error starting generation:', error);
+            showError('Failed to start generation');
+        });
+    }
+
+    function startPolling() {
+        pollInterval = setInterval(() => {
+            fetch(`/api/jobs/${jobId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'Completed') {
+                        clearInterval(pollInterval);
+                        enableDownloadButtons();
+                        showSuccess();
+                    } else if (data.status === 'Failed') {
+                        clearInterval(pollInterval);
+                        showError('PDF generation failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error polling job status:', error);
+                });
+        }, 2000);
+    }
+
+    function enableDownloadButtons() {
+        const frontBtn = document.getElementById('download-front-btn');
+        const backBtn = document.getElementById('download-back-btn');
+        const statusSection = document.getElementById('status-section');
+        
+        frontBtn.disabled = false;
+        frontBtn.classList.remove('bg-gray-100', 'text-gray-400');
+        frontBtn.classList.add('spotify-green', 'text-white', 'hover:shadow-lg');
+        
+        backBtn.disabled = false;
+        backBtn.classList.remove('bg-gray-100', 'text-gray-400');
+        backBtn.classList.add('spotify-green', 'text-white', 'hover:shadow-lg');
+        
+        statusSection.classList.add('hidden');
+    }
+
+    function downloadPDF(type) {
+        const playlistId = {{ playlist_id }};
+        window.location.href = `/api/download/${playlistId}/${type}`;
+    }
+
+    function showSuccess() {
+        const generateBtn = document.getElementById('generate-btn');
+        generateBtn.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Generation Complete!</span>';
+        generateBtn.classList.remove('spotify-green');
+        generateBtn.classList.add('bg-green-600');
+    }
+
+    function showError(message) {
+        const generateBtn = document.getElementById('generate-btn');
+        const statusSection = document.getElementById('status-section');
+        
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg><span>Try Again</span>';
+        
+        statusSection.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-medium text-red-900">${message}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+</script>
 {% endblock %}

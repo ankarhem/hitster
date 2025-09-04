@@ -22,6 +22,8 @@ pub struct Settings {
     pub client_id: String,
     /// Spotify application client secret
     pub client_secret: String,
+    /// Database URL
+    pub database_url: String,
 }
 
 impl Settings {
@@ -39,10 +41,16 @@ impl Settings {
             .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_ID".to_string()))?;
         let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET")
             .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_SECRET".to_string()))?;
+        let database_url = std::env::var("DATABASE_URL")
+            .unwrap_or_else(|_| {
+                let current_dir = std::env::current_dir().unwrap();
+                current_dir.join("db/hitster.db").to_string_lossy().to_string()
+            });
         
         Ok(Settings {
             client_id,
             client_secret,
+            database_url,
         })
     }
 }

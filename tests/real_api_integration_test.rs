@@ -9,6 +9,7 @@ async fn test_real_spotify_api_invalid_credentials() {
     let invalid_settings = Settings {
         client_id: "invalid_client_id".to_string(),
         client_secret: "invalid_client_secret".to_string(),
+        database_url: "test.db".to_string(),
     };
 
     let result = SpotifyService::new(&invalid_settings).await;

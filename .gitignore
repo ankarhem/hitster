@@ -32,3 +32,5 @@ config.yaml
 config.json
 /.claude/
 
+# Database
+db/hitster.db

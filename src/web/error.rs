@@ -8,6 +8,8 @@ use axum::http::{StatusCode, HeaderValue};
 pub enum AppError {
     /// Any error: {0}
     Anything(#[from] anyhow::Error),
+    /// IO error: {0}
+    Io(#[from] std::io::Error),
 }
 
 impl IntoResponse for AppError {
@@ -15,6 +17,9 @@ impl IntoResponse for AppError {
         let (status, error_message) = match &self {
             AppError::Anything(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "An internal server error occurred")
+            },
+            AppError::Io(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "An I/O error occurred")
             },
         };
         tracing::error!("Error: {}", self);
