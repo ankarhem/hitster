@@ -35,14 +35,20 @@ impl SpotifyService {
             let item = item_result?;
 
             if let Some(PlayableItem::Track(track)) = item.track {
-                tracks.push(track.try_into()?);
+                if let Ok(track) = track.try_into() {
+                    tracks.push(track);
+                    continue;
+                } else {
+                    skipped_tracks += 1;
+                    continue;
+                }
             } else {
                 skipped_tracks += 1;
             }
         }
 
         if skipped_tracks > 0 {
-            tracing::warn!("Skipped {} non-track items", skipped_tracks);
+            tracing::warn!("Skipped {} tracks", skipped_tracks);
         }
 
         Ok(Playlist {
