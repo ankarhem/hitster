@@ -49,45 +49,6 @@ impl TryFrom<FullTrack> for Track {
     }
 }
 
-#[derive(Clone)]
-pub struct SpotifyMapper {
-    client: ClientCredsSpotify,
-}
-
-impl SpotifyMapper {
-    pub fn new(client: ClientCredsSpotify) -> Self {
-        Self { client }
-    }
-
-    pub async fn map_full_playlist(&self, full_playlist: FullPlaylist) -> Result<Playlist> {
-        let playlist_id = full_playlist.id.clone();
-        let mut tracks_stream = self.client.playlist_items(playlist_id.clone(), None, None);
-        
-        let mut tracks = Vec::new();
-        let mut skipped_tracks = 0;
-        
-        while let Some(item_result) = tracks_stream.next().await {
-            let item = item_result?;
-            
-            if let Some(PlayableItem::Track(track)) = item.track {
-                tracks.push(track.try_into()?);
-            } else {
-                skipped_tracks += 1;
-            }
-        }
-        
-        if skipped_tracks > 0 {
-            tracing::warn!("Skipped {} non-track items", skipped_tracks);
-        }
-        
-        Ok(Playlist {
-            id: playlist_id.try_into()?,
-            name: full_playlist.name,
-            tracks,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
