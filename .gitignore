@@ -34,3 +34,4 @@ config.json
 
 # Database
 db/hitster.db
+generated_pdfs/

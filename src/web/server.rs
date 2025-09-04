@@ -9,7 +9,7 @@ use crate::application::{HitsterService, JobService};
 use crate::infrastructure::Database;
 use crate::web::{templates::{CardsTemplate, CardTemplate, IndexTemplate}, qr_code, AppError};
 use askama::Template;
-use tracing::{info, instrument};
+use tracing::{info, error, instrument};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -93,20 +93,61 @@ async fn submit_playlist(
     State(server): State<WebServer>,
     Form(form): Form<PlaylistForm>,
 ) -> Result<impl IntoResponse, AppError> {
+    info!("Received playlist submission: {}", form.playlist_url);
+    
     // Extract playlist ID from URL
-    let playlist_id = extract_playlist_id(&form.playlist_url)?;
+    let playlist_id = match extract_playlist_id(&form.playlist_url) {
+        Ok(id) => {
+            info!("Extracted playlist ID: {}", id);
+            id
+        }
+        Err(e) => {
+            error!("Failed to extract playlist ID from URL {}: {}", form.playlist_url, e);
+            return Err(e);
+        }
+    };
     
     // Check if playlist already exists in database
-    let existing_playlist = server.database.get_playlist_by_spotify_id(&playlist_id).await?;
+    let existing_playlist = match server.database.get_playlist_by_spotify_id(&playlist_id).await {
+        Ok(playlist) => {
+            info!("Found existing playlist in database: {:?}", playlist);
+            playlist
+        }
+        Err(e) => {
+            error!("Failed to check existing playlist: {}", e);
+            return Err(AppError::DatabaseError(e.to_string()));
+        }
+    };
     
     let playlist_id_num = if let Some(playlist) = existing_playlist {
+        info!("Using existing playlist with ID: {}", playlist.id);
         playlist.id
     } else {
+        info!("Fetching new playlist from Spotify API: {}", playlist_id);
+        
         // Get playlist info from Spotify
-        let spotify_playlist = server.hitster_service.get_playlist_by_id(&playlist_id).await?;
+        let spotify_playlist = match server.hitster_service.get_playlist_by_id(&playlist_id).await {
+            Ok(playlist) => {
+                info!("Successfully fetched playlist from Spotify: {} with {} tracks", playlist.name, playlist.tracks.len());
+                playlist
+            }
+            Err(e) => {
+                error!("Failed to fetch playlist from Spotify API: {}", e);
+                return Err(AppError::SpotifyApiError(e.to_string()));
+            }
+        };
         
         // Create playlist in database
-        let db_playlist = server.database.create_playlist(&playlist_id, &spotify_playlist.name).await?;
+        let db_playlist = match server.database.create_playlist(&playlist_id, &spotify_playlist.name).await {
+            Ok(playlist) => {
+                info!("Created playlist in database with ID: {}", playlist.id);
+                playlist
+            }
+            Err(e) => {
+                error!("Failed to create playlist in database: {}", e);
+                return Err(AppError::DatabaseError(e.to_string()));
+            }
+        };
         
         // Store tracks in database
         let tracks: Vec<_> = spotify_playlist.tracks.into_iter().enumerate().map(|(i, track)| {
@@ -120,11 +161,21 @@ async fn submit_playlist(
             }
         }).collect();
         
-        server.database.create_tracks(&tracks).await?;
+        info!("Storing {} tracks in database", tracks.len());
+        match server.database.create_tracks(&tracks).await {
+            Ok(()) => {
+                info!("Successfully stored tracks in database");
+            }
+            Err(e) => {
+                error!("Failed to store tracks in database: {}", e);
+                return Err(AppError::DatabaseError(e.to_string()));
+            }
+        };
+        
         db_playlist.id
     };
     
-    info!("Submitted playlist: {}", playlist_id);
+    info!("Redirecting to cards page for playlist ID: {}", playlist_id_num);
     Ok(Redirect::to(&format!("/cards/{}", playlist_id_num)))
 }
 
@@ -203,25 +254,37 @@ fn create_card_templates_from_db(tracks: Vec<crate::infrastructure::Track>) -> R
 pub fn extract_playlist_id(url: &str) -> Result<String, AppError> {
     // Handle different URL formats:
     // https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
+    // https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=xyz
     // spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
     // 37i9dQZF1DXcBWIGoYBM5M
     
     if url.contains("open.spotify.com/playlist/") {
         let parts: Vec<&str> = url.split('/').collect();
-        if let Some(id) = parts.last() {
-            return Ok(id.to_string());
+        if let Some(last_part) = parts.last() {
+            // Remove query parameters if present
+            let clean_id = last_part.split('?').next().unwrap_or(last_part);
+            if !clean_id.is_empty() {
+                return Ok(clean_id.to_string());
+            }
         }
     } else if url.contains("spotify:playlist:") {
         let parts: Vec<&str> = url.split(':').collect();
         if let Some(id) = parts.last() {
-            return Ok(id.to_string());
+            // Remove query parameters if present
+            let clean_id = id.split('?').next().unwrap_or(id);
+            if !clean_id.is_empty() {
+                return Ok(clean_id.to_string());
+            }
         }
     } else if !url.contains('/') && !url.contains(':') {
-        // Assume it's a raw ID
-        return Ok(url.to_string());
+        // Assume it's a raw ID, but still clean query parameters
+        let clean_id = url.split('?').next().unwrap_or(url);
+        if !clean_id.is_empty() {
+            return Ok(clean_id.to_string());
+        }
     }
     
-    Err(AppError::Anything(anyhow::anyhow!("Invalid Spotify playlist URL format")))
+    Err(AppError::InvalidPlaylistUrl(url.to_string()))
 }
 
 #[instrument(skip(server))]

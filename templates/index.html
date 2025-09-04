@@ -90,6 +90,69 @@
     // Auto-focus on input when page loads
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('playlist_url').focus();
+        
+        // Add form validation
+        const form = document.querySelector('form');
+        const input = document.getElementById('playlist_url');
+        
+        form.addEventListener('submit', function(e) {
+            const url = input.value.trim();
+            
+            // Basic validation
+            if (!url) {
+                e.preventDefault();
+                showError('Please enter a Spotify playlist URL or ID');
+                return;
+            }
+            
+            // Check if it looks like a valid Spotify playlist reference
+            const spotifyPatterns = [
+                /open\.spotify\.com\/playlist\//i,
+                /spotify:playlist:/i,
+                /^[a-zA-Z0-9]{22}$/ // Raw Spotify ID
+            ];
+            
+            const isValid = spotifyPatterns.some(pattern => pattern.test(url));
+            
+            if (!isValid) {
+                e.preventDefault();
+                showError('Please enter a valid Spotify playlist URL or ID');
+                return;
+            }
+        });
+        
+        function showError(message) {
+            // Remove existing error message
+            const existingError = document.querySelector('.error-message');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Create and show error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4';
+            errorDiv.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-sm">${message}</span>
+                </div>
+            `;
+            
+            // Insert error message before the form
+            form.parentNode.insertBefore(errorDiv, form);
+            
+            // Scroll to error message
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+        }
     });
 </script>
 {% endblock %}
