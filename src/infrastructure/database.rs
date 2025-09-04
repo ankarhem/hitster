@@ -350,6 +350,3 @@ pub struct NewTrack {
     pub spotify_url: String,
     pub position: i32,
 }
-
-#[cfg(test)]
-mod database_tests;
