@@ -2,33 +2,6 @@
 
 {% block title %}Error - Hitster Cards{% endblock %}
 
-{% block head %}
-<style>
-    @page {
-        size: A4;
-        margin: 20mm;
-    }
-    
-    @media print {
-        .print\\:hidden { display: none; }
-        .print\\:block { display: block; }
-        .print\\:text-center { text-align: center; }
-        .print\\:text-lg { font-size: 18px; }
-        .print\\:text-sm { font-size: 12px; }
-        .print\\:mb-4 { margin-bottom: 16px; }
-        .print\\:mb-8 { margin-bottom: 32px; }
-        .print\\:p-4 { padding: 16px; }
-        .print\\:border { border-width: 1px; }
-        .print\\:border-red-200 { border-color: #fecaca; }
-        .print\\:bg-red-50 { background-color: #fef2f2; }
-        .print\\:text-red-800 { color: #991b1b; }
-        .print\\:text-red-600 { color: #dc2626; }
-        .print\\:font-semibold { font-weight: 600; }
-        .print\\:rounded { border-radius: 0.375rem; }
-    }
-</style>
-{% endblock %}
-
 {% block body %}
 <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-white shadow-lg rounded-lg border border-red-200">
