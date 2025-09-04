@@ -120,6 +120,72 @@ impl Database {
         Ok(result)
     }
 
+    /// Transactional method to create a playlist and its tracks in a single transaction
+    pub async fn create_playlist_with_tracks(
+        &self,
+        spotify_id: &str,
+        name: &str,
+        tracks: &[NewTrack],
+    ) -> anyhow::Result<Playlist> {
+        let mut tx = self.pool.begin().await?;
+        
+        // Create playlist
+        let playlist_id = Uuid::new_v4().to_string();
+        let playlist = sqlx::query_as(
+            r#"
+            INSERT INTO playlists (id, spotify_id, name)
+            VALUES (?, ?, ?)
+            RETURNING id, spotify_id, name, created_at, updated_at
+            "#,
+        )
+        .bind(&playlist_id)
+        .bind(spotify_id)
+        .bind(name)
+        .fetch_one(&mut *tx)
+        .await?;
+        
+        // Create all tracks
+        for track in tracks {
+            let track_id = Uuid::new_v4().to_string();
+            sqlx::query(
+                r#"
+                INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                "#,
+            )
+            .bind(&track_id)
+            .bind(&playlist_id)
+            .bind(&track.title)
+            .bind(&track.artist)
+            .bind(&track.year)
+            .bind(&track.spotify_url)
+            .bind(track.position)
+            .execute(&mut *tx)
+            .await?;
+        }
+        
+        // Commit the transaction
+        tx.commit().await?;
+        
+        Ok(playlist)
+    }
+
+    /// Cleanup orphaned playlists (those without tracks)
+    pub async fn cleanup_orphaned_playlists(&self) -> anyhow::Result<usize> {
+        let result = sqlx::query(
+            r#"
+            DELETE FROM playlists
+            WHERE id NOT IN (
+                SELECT DISTINCT playlist_id FROM tracks
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+        
+        Ok(result.rows_affected() as usize)
+    }
+
     // Job operations
     pub async fn create_job(&self, playlist_id: &str) -> anyhow::Result<Job> {
         let id = Uuid::new_v4().to_string();
@@ -227,7 +293,7 @@ impl Database {
             sqlx::query(
                 r#"
                 INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 "#,
             )
             .bind(&id)

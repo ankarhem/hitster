@@ -137,23 +137,10 @@ async fn submit_playlist(
             }
         };
         
-        // Create playlist in database
-        let db_playlist = match server.database.create_playlist(&playlist_id, &spotify_playlist.name).await {
-            Ok(playlist) => {
-                info!("Created playlist in database with ID: {}", playlist.id);
-                playlist
-            }
-            Err(e) => {
-                error!("Failed to create playlist in database: {}", e);
-                return Err(AppError::DatabaseError(e.to_string()));
-            }
-        };
-        
-        // Store tracks in database
-        let playlist_id = db_playlist.id.clone();
+        // Create playlist and tracks in a single transaction
         let tracks: Vec<_> = spotify_playlist.tracks.into_iter().enumerate().map(|(i, track)| {
             crate::infrastructure::NewTrack {
-                playlist_id: playlist_id.clone(),
+                playlist_id: "".to_string(), // Will be set by the transactional method
                 title: track.title,
                 artist: track.artist,
                 year: track.year,
@@ -162,13 +149,14 @@ async fn submit_playlist(
             }
         }).collect();
         
-        info!("Storing {} tracks in database", tracks.len());
-        match server.database.create_tracks(&tracks).await {
-            Ok(()) => {
-                info!("Successfully stored tracks in database");
+        info!("Creating playlist and {} tracks in database", tracks.len());
+        let db_playlist = match server.database.create_playlist_with_tracks(&playlist_id, &spotify_playlist.name, &tracks).await {
+            Ok(playlist) => {
+                info!("Successfully created playlist and tracks in database with ID: {}", playlist.id);
+                playlist
             }
             Err(e) => {
-                error!("Failed to store tracks in database: {}", e);
+                error!("Failed to create playlist and tracks in database: {}", e);
                 return Err(AppError::DatabaseError(e.to_string()));
             }
         };
