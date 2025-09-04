@@ -70,19 +70,12 @@ fn build_html_content(tracks: Vec<crate::application::models::Track>, title: &st
 fn create_card_templates(tracks: Vec<crate::application::models::Track>) -> Result<Vec<CardTemplate>, AppError> {
     let mut all_cards = Vec::new();
     
-    // First, create all front cards
-    for track in &tracks {
-        let qr_data_url = qr_code::generate_qr_data_url(&track.spotify_url)?;
-        
-        all_cards.push(CardTemplate::Front { qr_data_url });
-    }
-    
-    // Then, create all back cards
     for track in tracks {
-        all_cards.push(CardTemplate::Back {
+        all_cards.push(CardTemplate {
             title: html_escape::encode_text(&track.title).to_string(),
             artist: html_escape::encode_text(&track.artist).to_string(),
             year: track.year,
+            qr_code: qr_code::generate_qr_data_url(&track.spotify_url)?,
         });
     }
     

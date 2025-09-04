@@ -12,8 +12,7 @@
 {% endblock %}
 
 {% block body %}
-{# Info header (hidden in print) #}
-<header class="print:hidden bg-blue-50 border-b border-blue-200 p-4 text-center">
+<header class="bg-blue-50 border-b border-blue-200 p-4 text-center">
     <h2 class="text-lg font-semibold text-blue-800 mb-1">Hitster Cards - {{ title }}</h2>
     <p class="text-sm text-blue-600">
         {{ total_cards }} {% if total_cards == 1 %}song{% else %}songs{% endif %}
@@ -23,21 +22,11 @@
 </header>
 
 {%- for chunk in cards.chunks(12) -%}
-<div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8"
-     style="width: 210mm; height: 280mm;">
+<div class="grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8">
     {%- for card in chunk -%}
-    {{ card }}
+    {{ card | safe }}
     {%- endfor -%}
 </div>
-<!--<div class="hidden print:grid grid-cols-3 grid-rows-4 gap-4 justify-center p-6 bg-gray-50 mb-8">-->
-<!--    {%- for chunk in cards.chunks(12) -%}-->
-<!--    <div class="print:card-grid print:break-after-page">-->
-<!--        {%- for card in chunk -%}-->
-<!--        {{ card }}-->
-<!--        {%- endfor -%}-->
-<!--    </div>-->
-<!--    {%- endfor -%}-->
-<!--</div>-->
 {%- endfor -%}
 
 {% endblock %}

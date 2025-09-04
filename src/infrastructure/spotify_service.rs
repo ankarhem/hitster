@@ -38,7 +38,7 @@ impl SpotifyService {
         let rspotify_playlist_id: RspotifyPlaylistId<'static> = playlist_id.clone().try_into()?;
         
         let playlist = self.client.playlist(rspotify_playlist_id, None, None).await?;
-        
+
         let mut tracks_stream = self
             .client
             .playlist_items(playlist.id, None, None);
