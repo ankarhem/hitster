@@ -1,4 +1,4 @@
-use sqlx::{FromRow, SqlitePool};
+use sqlx::{FromRow, SqlitePool, sqlite::SqliteConnectOptions};
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 
@@ -49,55 +49,16 @@ pub struct Database {
 
 impl Database {
     pub async fn new(database_url: &str) -> anyhow::Result<Self> {
-        let pool = SqlitePool::connect(database_url).await?;
+        // Create database connection options with automatic file creation
+        let options = SqliteConnectOptions::new()
+            .filename(database_url)
+            .create_if_missing(true);
         
-        // Create tables if they don't exist (temporary - will be replaced with migrations)
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS playlists (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                spotify_id TEXT NOT NULL UNIQUE,
-                name TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS jobs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                playlist_id INTEGER NOT NULL REFERENCES playlists(id),
-                status TEXT NOT NULL DEFAULT 'pending',
-                front_pdf_path TEXT,
-                back_pdf_path TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                completed_at DATETIME
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS tracks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                playlist_id INTEGER NOT NULL REFERENCES playlists(id),
-                title TEXT NOT NULL,
-                artist TEXT NOT NULL,
-                year TEXT NOT NULL,
-                spotify_url TEXT NOT NULL,
-                position INTEGER NOT NULL
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await?;
-
+        let pool = SqlitePool::connect_with(options).await?;
+        
+        // Run migrations
+        sqlx::migrate!("./migrations").run(&pool).await?;
+        
         Ok(Self { pool })
     }
 
