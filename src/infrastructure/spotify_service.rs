@@ -17,6 +17,27 @@ impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
     }
 }
 
+impl TryFrom<rspotify::model::FullTrack> for Track {
+    type Error = anyhow::Error;
+
+    fn try_from(track: rspotify::model::FullTrack) -> Result<Self, Self::Error> {
+        let artist_names: Vec<String> = track.artists.iter().map(|a| a.name.clone()).collect();
+        let year = track.album.release_date.as_deref()
+            .unwrap_or("Unknown")
+            .split('-')
+            .next()
+            .unwrap_or("Unknown")
+            .to_string();
+        
+        Ok(Track {
+            title: track.name,
+            artist: artist_names.join(", "),
+            year,
+            spotify_url: track.external_urls.get("spotify").cloned().unwrap_or_default(),
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct SpotifyService {
     client: ClientCredsSpotify,
@@ -50,20 +71,7 @@ impl SpotifyService {
             let item = item_result?;
             
             if let Some(PlayableItem::Track(track)) = item.track {
-                let artist_names: Vec<String> = track.artists.iter().map(|a| a.name.clone()).collect();
-                let year = track.album.release_date.as_deref()
-                    .unwrap_or("Unknown")
-                    .split('-')
-                    .next()
-                    .unwrap_or("Unknown")
-                    .to_string();
-                
-                tracks.push(Track {
-                    title: track.name.clone(),
-                    artist: artist_names.join(", "),
-                    year,
-                    spotify_url: track.external_urls.get("spotify").cloned().unwrap_or_default(),
-                });
+                tracks.push(track.try_into()?);
             } else {
                 skipped_tracks += 1;
             }
