@@ -14,7 +14,7 @@ pub struct CardsTemplate {
     /// Job information for PDF generation
     pub job: Option<Job>,
     /// Helper fields for template
-    pub job_id: i64,
-    pub playlist_id: i64,
+    pub job_id: String,
+    pub playlist_id: String,
     pub has_completed_job: bool,
 }

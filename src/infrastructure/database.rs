@@ -1,10 +1,11 @@
 use sqlx::{FromRow, SqlitePool, sqlite::SqliteConnectOptions};
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct Playlist {
-    pub id: i64,
+    pub id: String,
     pub spotify_id: String,
     pub name: String,
     pub created_at: DateTime<Utc>,
@@ -13,8 +14,8 @@ pub struct Playlist {
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct Job {
-    pub id: i64,
-    pub playlist_id: i64,
+    pub id: String,
+    pub playlist_id: String,
     pub status: JobStatus,
     pub front_pdf_path: Option<String>,
     pub back_pdf_path: Option<String>,
@@ -33,8 +34,8 @@ pub enum JobStatus {
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct Track {
-    pub id: i64,
-    pub playlist_id: i64,
+    pub id: String,
+    pub playlist_id: String,
     pub title: String,
     pub artist: String,
     pub year: String,
@@ -72,13 +73,15 @@ impl Database {
         spotify_id: &str,
         name: &str,
     ) -> anyhow::Result<Playlist> {
+        let id = Uuid::new_v4().to_string();
         let result = sqlx::query_as(
             r#"
-            INSERT INTO playlists (spotify_id, name)
-            VALUES (?, ?)
+            INSERT INTO playlists (id, spotify_id, name)
+            VALUES (?, ?, ?)
             RETURNING id, spotify_id, name, created_at, updated_at
             "#,
         )
+        .bind(&id)
         .bind(spotify_id)
         .bind(name)
         .fetch_one(&self.pool)
@@ -102,7 +105,7 @@ impl Database {
         Ok(result)
     }
 
-    pub async fn get_playlist_by_id(&self, id: i64) -> anyhow::Result<Option<Playlist>> {
+    pub async fn get_playlist_by_id(&self, id: &str) -> anyhow::Result<Option<Playlist>> {
         let result = sqlx::query_as(
             r#"
             SELECT id, spotify_id, name, created_at, updated_at
@@ -118,14 +121,16 @@ impl Database {
     }
 
     // Job operations
-    pub async fn create_job(&self, playlist_id: i64) -> anyhow::Result<Job> {
+    pub async fn create_job(&self, playlist_id: &str) -> anyhow::Result<Job> {
+        let id = Uuid::new_v4().to_string();
         let result = sqlx::query_as(
             r#"
-            INSERT INTO jobs (playlist_id, status)
-            VALUES (?, ?)
+            INSERT INTO jobs (id, playlist_id, status)
+            VALUES (?, ?, ?)
             RETURNING id, playlist_id, status, front_pdf_path, back_pdf_path, created_at, completed_at
             "#,
         )
+        .bind(&id)
         .bind(playlist_id)
         .bind(JobStatus::Pending)
         .fetch_one(&self.pool)
@@ -134,7 +139,7 @@ impl Database {
         Ok(result)
     }
 
-    pub async fn get_job_by_id(&self, job_id: i64) -> anyhow::Result<Option<Job>> {
+    pub async fn get_job_by_id(&self, job_id: &str) -> anyhow::Result<Option<Job>> {
         let result = sqlx::query_as(
             r#"
             SELECT id, playlist_id, status, front_pdf_path, back_pdf_path, created_at, completed_at
@@ -149,7 +154,7 @@ impl Database {
         Ok(result)
     }
 
-    pub async fn get_latest_job_for_playlist(&self, playlist_id: i64) -> anyhow::Result<Option<Job>> {
+    pub async fn get_latest_job_for_playlist(&self, playlist_id: &str) -> anyhow::Result<Option<Job>> {
         let result = sqlx::query_as(
             r#"
             SELECT id, playlist_id, status, front_pdf_path, back_pdf_path, created_at, completed_at
@@ -168,7 +173,7 @@ impl Database {
 
     pub async fn update_job_status(
         &self,
-        job_id: i64,
+        job_id: &str,
         status: JobStatus,
     ) -> anyhow::Result<()> {
         sqlx::query(
@@ -192,7 +197,7 @@ impl Database {
 
     pub async fn update_job_pdf_paths(
         &self,
-        job_id: i64,
+        job_id: &str,
         front_pdf_path: Option<&str>,
         back_pdf_path: Option<&str>,
     ) -> anyhow::Result<()> {
@@ -218,13 +223,15 @@ impl Database {
         tracks: &[NewTrack],
     ) -> anyhow::Result<()> {
         for track in tracks {
+            let id = Uuid::new_v4().to_string();
             sqlx::query(
                 r#"
-                INSERT INTO tracks (playlist_id, title, artist, year, spotify_url, position)
+                INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position)
                 VALUES (?, ?, ?, ?, ?, ?)
                 "#,
             )
-            .bind(track.playlist_id)
+            .bind(&id)
+            .bind(&track.playlist_id)
             .bind(&track.title)
             .bind(&track.artist)
             .bind(&track.year)
@@ -237,7 +244,7 @@ impl Database {
         Ok(())
     }
 
-    pub async fn get_tracks_by_playlist_id(&self, playlist_id: i64) -> anyhow::Result<Vec<Track>> {
+    pub async fn get_tracks_by_playlist_id(&self, playlist_id: &str) -> anyhow::Result<Vec<Track>> {
         let result = sqlx::query_as(
             r#"
             SELECT id, playlist_id, title, artist, year, spotify_url, position
@@ -253,7 +260,7 @@ impl Database {
         Ok(result)
     }
 
-    pub async fn delete_tracks_for_playlist(&self, playlist_id: i64) -> anyhow::Result<()> {
+    pub async fn delete_tracks_for_playlist(&self, playlist_id: &str) -> anyhow::Result<()> {
         sqlx::query(
             r#"
             DELETE FROM tracks
@@ -270,7 +277,7 @@ impl Database {
 
 #[derive(Debug)]
 pub struct NewTrack {
-    pub playlist_id: i64,
+    pub playlist_id: String,
     pub title: String,
     pub artist: String,
     pub year: String,

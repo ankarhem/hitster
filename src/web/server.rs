@@ -26,12 +26,12 @@ pub struct PlaylistForm {
 
 #[derive(Serialize)]
 struct JobResponse {
-    job_id: i64,
+    job_id: String,
 }
 
 #[derive(Serialize)]
 struct JobStatusResponse {
-    id: i64,
+    id: String,
     status: String,
     front_pdf_path: Option<String>,
     back_pdf_path: Option<String>,
@@ -39,7 +39,7 @@ struct JobStatusResponse {
 
 #[derive(Deserialize, Debug)]
 struct GenerateRequest {
-    playlist_id: i64,
+    playlist_id: String,
 }
 
 impl WebServer {
@@ -119,7 +119,7 @@ async fn submit_playlist(
         }
     };
     
-    let playlist_id_num = if let Some(playlist) = existing_playlist {
+    let playlist_id_str = if let Some(playlist) = existing_playlist {
         info!("Using existing playlist with ID: {}", playlist.id);
         playlist.id
     } else {
@@ -150,9 +150,10 @@ async fn submit_playlist(
         };
         
         // Store tracks in database
+        let playlist_id = db_playlist.id.clone();
         let tracks: Vec<_> = spotify_playlist.tracks.into_iter().enumerate().map(|(i, track)| {
             crate::infrastructure::NewTrack {
-                playlist_id: db_playlist.id,
+                playlist_id: playlist_id.clone(),
                 title: track.title,
                 artist: track.artist,
                 year: track.year,
@@ -175,26 +176,26 @@ async fn submit_playlist(
         db_playlist.id
     };
     
-    info!("Redirecting to cards page for playlist ID: {}", playlist_id_num);
-    Ok(Redirect::to(&format!("/cards/{}", playlist_id_num)))
+    info!("Redirecting to cards page for playlist ID: {}", playlist_id_str);
+    Ok(Redirect::to(&format!("/cards/{}", playlist_id_str)))
 }
 
 #[instrument(skip(server), fields(playlist_id))]
 async fn cards_page(
-    Path(playlist_id): Path<i64>,
+    Path(playlist_id): Path<String>,
     State(server): State<WebServer>,
 ) -> Result<impl IntoResponse, AppError> {
-    let playlist = server.database.get_playlist_by_id(playlist_id).await?
+    let playlist = server.database.get_playlist_by_id(&playlist_id).await?
         .ok_or_else(|| AppError::Anything(anyhow::anyhow!("Playlist not found")))?;
     
-    let tracks = server.database.get_tracks_by_playlist_id(playlist_id).await?;
+    let tracks = server.database.get_tracks_by_playlist_id(&playlist_id).await?;
     
     // Check if there's already a job, create one if needed
-    let job = match server.database.get_latest_job_for_playlist(playlist_id).await? {
+    let job = match server.database.get_latest_job_for_playlist(&playlist_id).await? {
         Some(existing_job) => existing_job,
         None => {
             // Create a pending job
-            server.database.create_job(playlist_id).await?
+            server.database.create_job(&playlist_id).await?
         }
     };
     
@@ -214,12 +215,12 @@ fn build_cards_html_content(
     
     let (job_id, playlist_id, has_completed_job) = if let Some(ref job) = job {
         (
-            job.id,
-            job.playlist_id,
+            job.id.clone(),
+            job.playlist_id.clone(),
             job.status == crate::infrastructure::JobStatus::Completed,
         )
     } else {
-        (0, 0, false)
+        ("".to_string(), "".to_string(), false)
     };
     
     let template = CardsTemplate {
@@ -289,12 +290,12 @@ pub fn extract_playlist_id(url: &str) -> Result<String, AppError> {
 
 #[instrument(skip(server))]
 async fn start_generation(
-    Path(job_id): Path<i64>,
+    Path(job_id): Path<String>,
     State(server): State<WebServer>,
     Json(request): Json<GenerateRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     // Create a new job for this generation request
-    let job = server.job_service.create_job(request.playlist_id).await?;
+    let job = server.job_service.create_job(&request.playlist_id).await?;
     
     info!("Started generation job {} for playlist {}", job.id, request.playlist_id);
     Ok(Json(JobResponse { job_id: job.id }))
@@ -302,10 +303,10 @@ async fn start_generation(
 
 #[instrument(skip(server))]
 async fn get_job_status(
-    Path(job_id): Path<i64>,
+    Path(job_id): Path<String>,
     State(server): State<WebServer>,
 ) -> Result<impl IntoResponse, AppError> {
-    let job = server.job_service.get_job(job_id).await?
+    let job = server.job_service.get_job(&job_id).await?
         .ok_or_else(|| AppError::Anything(anyhow::anyhow!("Job not found")))?;
     
     let response = JobStatusResponse {
@@ -320,11 +321,11 @@ async fn get_job_status(
 
 #[instrument(skip(server))]
 async fn download_pdf(
-    Path((playlist_id, pdf_type)): Path<(i64, String)>,
+    Path((playlist_id, pdf_type)): Path<(String, String)>,
     State(server): State<WebServer>,
 ) -> Result<impl IntoResponse, AppError> {
     // Get the latest completed job for this playlist
-    let job = server.database.get_latest_job_for_playlist(playlist_id).await?
+    let job = server.database.get_latest_job_for_playlist(&playlist_id).await?
         .ok_or_else(|| AppError::Anything(anyhow::anyhow!("No job found for playlist")))?;
     
     if job.status != crate::infrastructure::JobStatus::Completed {
