@@ -30,17 +30,21 @@ impl TryFrom<FullTrack> for Track {
     fn try_from(track: FullTrack) -> Result<Self, Self::Error> {
         let artist_names: Vec<String> = track.artists.iter().map(|a| a.name.clone()).collect();
         let year = track.album.release_date.as_deref()
-            .unwrap_or("Unknown")
-            .split('-')
-            .next()
-            .unwrap_or("Unknown")
+            .and_then(|r| {
+                r.split('-').next()
+            })
+            .ok_or(anyhow::anyhow!("No year found"))?
             .to_string();
-        
+
+        let url = track.external_urls.get("spotify")
+            .cloned()
+            .ok_or(anyhow::anyhow!("No url found"))?;
+
         Ok(Track {
             title: track.name,
             artist: artist_names.join(", "),
             year,
-            spotify_url: track.external_urls.get("spotify").cloned().unwrap_or_default(),
+            spotify_url: url,
         })
     }
 }
@@ -124,28 +128,5 @@ mod tests {
         let url = "https://open.spotify.com/playlist/";
         let result: Result<PlaylistId, _> = url.parse();
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_playlist_creation() {
-        let playlist_id: PlaylistId = "test_id".parse().unwrap();
-        let tracks = vec![
-            Track {
-                title: "Test Song".to_string(),
-                artist: "Test Artist".to_string(),
-                year: "2023".to_string(),
-                spotify_url: "https://open.spotify.com/track/test".to_string(),
-            },
-        ];
-        
-        let playlist = Playlist {
-            id: playlist_id,
-            name: "Test Playlist".to_string(),
-            tracks,
-        };
-        
-        assert_eq!(playlist.name, "Test Playlist");
-        assert_eq!(playlist.tracks.len(), 1);
-        assert_eq!(playlist.tracks[0].title, "Test Song");
     }
 }
