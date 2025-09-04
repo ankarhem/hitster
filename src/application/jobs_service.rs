@@ -57,6 +57,22 @@ impl JobService {
         self.database.get_job_by_id(job_id).await
     }
     
+    /// Get the latest job for a playlist, or create a new one if none exists
+    pub async fn get_or_create_job_for_playlist(&self, playlist_id: &str) -> Result<Job> {
+        if let Some(existing_job) = self.database.get_latest_job_for_playlist(playlist_id).await? {
+            info!("Found existing job {} for playlist {}", existing_job.id, playlist_id);
+            Ok(existing_job)
+        } else {
+            info!("No existing job for playlist {}, creating new job", playlist_id);
+            self.create_job(playlist_id).await
+        }
+    }
+    
+    /// Get the latest job for a playlist
+    pub async fn get_latest_job_for_playlist(&self, playlist_id: &str) -> Result<Option<Job>> {
+        self.database.get_latest_job_for_playlist(playlist_id).await
+    }
+    
     async fn process_job(database: Arc<Database>, message: JobMessage) -> Result<()> {
         let job_id = message.job_id.clone();
         let playlist_id = message.playlist_id.clone();

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 /// Wrapper for Spotify playlist ID with validation
 #[derive(Debug, Clone, PartialEq)]
-pub struct PlaylistId(String);
+pub struct PlaylistId(pub String);
 
 impl PlaylistId {
     pub fn as_str(&self) -> &str {

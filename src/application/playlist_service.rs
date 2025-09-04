@@ -98,29 +98,34 @@ impl PlaylistService {
     }
 
     /// Get a playlist by database ID
-    pub async fn get_playlist_by_id(&self, _id: &str) -> Result<Option<Playlist>> {
-        // This would need to be implemented to convert from infrastructure to domain model
-        // For now, return None
-        Ok(None)
+    pub async fn get_playlist_by_id(&self, id: &str) -> Result<Option<Playlist>> {
+        if let Some(db_playlist) = self.database.get_playlist_by_id(id).await? {
+            let tracks = self.database.get_tracks_by_playlist_id(id).await?;
+            let domain_tracks = tracks.into_iter().map(|t| Track {
+                title: t.title,
+                artist: t.artist,
+                year: t.year,
+                spotify_url: t.spotify_url,
+            }).collect();
+            
+            Ok(Some(Playlist {
+                id: PlaylistId(db_playlist.id),
+                name: db_playlist.name,
+                tracks: domain_tracks,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get tracks for a playlist
-    pub async fn get_tracks_for_playlist(&self, _playlist_id: &str) -> Result<Vec<Track>> {
-        // This would need to be implemented to convert from infrastructure to domain model
-        // For now, return empty vector
-        Ok(Vec::new())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_playlist_service_creation() {
-        // This would need a mock database for testing
-        // For now, just test that the struct can be created
-        // let service = PlaylistService::new(/* database */);
-        // assert!(true);
+    pub async fn get_tracks_for_playlist(&self, playlist_id: &str) -> Result<Vec<Track>> {
+        let db_tracks = self.database.get_tracks_by_playlist_id(playlist_id).await?;
+        Ok(db_tracks.into_iter().map(|t| Track {
+            title: t.title,
+            artist: t.artist,
+            year: t.year,
+            spotify_url: t.spotify_url,
+        }).collect())
     }
 }

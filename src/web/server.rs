@@ -6,7 +6,6 @@ use axum::{
 };
 use std::net::SocketAddr;
 use crate::application::{HitsterService, JobService, PlaylistService};
-use crate::infrastructure::Database;
 use crate::web::{templates::{CardsTemplate, CardTemplate, IndexTemplate}, qr_code, AppError};
 use askama::Template;
 use tracing::{info, error, instrument};
@@ -15,7 +14,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone)]
 pub struct WebServer {
     hitster_service: HitsterService,
-    database: Database,
     job_service: JobService,
     playlist_service: PlaylistService,
 }
@@ -44,9 +42,9 @@ struct GenerateRequest {
 }
 
 impl WebServer {
-    #[instrument(skip(hitster_service, database, job_service, playlist_service))]
-    pub fn new(hitster_service: HitsterService, database: Database, job_service: JobService, playlist_service: PlaylistService) -> Self {
-        Self { hitster_service, database, job_service, playlist_service }
+    #[instrument(skip(hitster_service, job_service, playlist_service))]
+    pub fn new(hitster_service: HitsterService, job_service: JobService, playlist_service: PlaylistService) -> Self {
+        Self { hitster_service, job_service, playlist_service }
     }
 
     #[instrument(skip(self), fields(port))]
@@ -122,35 +120,26 @@ async fn cards_page(
     Path(playlist_id): Path<String>,
     State(server): State<WebServer>,
 ) -> Result<impl IntoResponse, AppError> {
-    let playlist = server.database.get_playlist_by_id(&playlist_id).await?
+    let playlist = server.playlist_service.get_playlist_by_id(&playlist_id).await?
         .ok_or_else(|| AppError::Anything(anyhow::anyhow!("Playlist not found")))?;
     
-    let tracks = server.database.get_tracks_by_playlist_id(&playlist_id).await?;
-    
     // Check if there's already a job, create one if needed
-    let job = match server.database.get_latest_job_for_playlist(&playlist_id).await? {
-        Some(existing_job) => existing_job,
-        None => {
-            // Create a pending job
-            server.database.create_job(&playlist_id).await?
-        }
-    };
+    let job = server.job_service.get_or_create_job_for_playlist(&playlist_id).await?;
     
-    let html = build_cards_html_content(playlist, tracks, Some(job))?;
+    let html = build_cards_html_content(playlist, Some(job))?;
     
     info!("Served cards page for playlist: {}", playlist_id);
     Ok(Html(html))
 }
 
 fn build_cards_html_content(
-    playlist: crate::infrastructure::Playlist,
-    tracks: Vec<crate::infrastructure::Track>,
+    playlist: crate::application::models::Playlist,
     job: Option<crate::infrastructure::Job>,
 ) -> Result<String, AppError> {
-    let total_cards = tracks.len();
-    let card_templates = create_card_templates_from_db(tracks)?;
+    let total_cards = playlist.tracks.len();
+    let card_templates = create_card_templates_from_domain(playlist.tracks.clone())?;
     
-    let (job_id, playlist_id, has_completed_job) = if let Some(ref job) = job {
+    let (job_id, playlist_id_str, has_completed_job) = if let Some(ref job) = job {
         (
             job.id.clone(),
             job.playlist_id.clone(),
@@ -166,7 +155,7 @@ fn build_cards_html_content(
         cards: card_templates,
         job,
         job_id,
-        playlist_id,
+        playlist_id: playlist_id_str,
         has_completed_job,
     };
     
@@ -174,7 +163,7 @@ fn build_cards_html_content(
     Ok(html)
 }
 
-fn create_card_templates_from_db(tracks: Vec<crate::infrastructure::Track>) -> Result<Vec<CardTemplate>, AppError> {
+fn create_card_templates_from_domain(tracks: Vec<crate::application::models::Track>) -> Result<Vec<CardTemplate>, AppError> {
     let mut all_cards = Vec::new();
     
     for track in tracks {
@@ -226,7 +215,7 @@ async fn download_pdf(
     State(server): State<WebServer>,
 ) -> Result<impl IntoResponse, AppError> {
     // Get the latest completed job for this playlist
-    let job = server.database.get_latest_job_for_playlist(&playlist_id).await?
+    let job = server.job_service.get_latest_job_for_playlist(&playlist_id).await?
         .ok_or_else(|| AppError::Anything(anyhow::anyhow!("No job found for playlist")))?;
     
     if job.status != crate::infrastructure::JobStatus::Completed {
