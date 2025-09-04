@@ -1,3 +1,3 @@
-pub mod spotify_service;
+pub mod spotify;
 
-pub use spotify_service::SpotifyService;
+pub use spotify::{SpotifyMapper, SpotifyService};

@@ -1,4 +1,4 @@
-use crate::infrastructure::spotify_service::SpotifyService;
+use crate::infrastructure::spotify::SpotifyService;
 use crate::application::models::{Playlist, PlaylistId};
 use anyhow::Result;
 use tracing::{info, instrument};

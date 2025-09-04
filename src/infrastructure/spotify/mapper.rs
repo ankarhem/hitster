@@ -1,13 +1,12 @@
 use anyhow::Result;
+use futures::StreamExt;
 use rspotify::{
-    clients::BaseClient,
-    model::{PlayableItem, PlaylistId as RspotifyPlaylistId},
-    ClientCredsSpotify, Credentials,
+    model::{FullPlaylist, FullTrack, PlayableItem, PlaylistId as RspotifyPlaylistId},
+    prelude::BaseClient,
+    ClientCredsSpotify,
 };
 use crate::application::models::{Playlist, PlaylistId, Track};
-use crate::Settings;
-use futures::StreamExt;
-use tracing::{info, warn, instrument};
+use std::str::FromStr;
 
 impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
     type Error = anyhow::Error;
@@ -17,10 +16,18 @@ impl TryFrom<PlaylistId> for RspotifyPlaylistId<'static> {
     }
 }
 
-impl TryFrom<rspotify::model::FullTrack> for Track {
+impl TryFrom<RspotifyPlaylistId<'_>> for PlaylistId {
     type Error = anyhow::Error;
 
-    fn try_from(track: rspotify::model::FullTrack) -> Result<Self, Self::Error> {
+    fn try_from(id: RspotifyPlaylistId<'_>) -> Result<Self, Self::Error> {
+        Ok(PlaylistId::from_str(&id.to_string())?)
+    }
+}
+
+impl TryFrom<FullTrack> for Track {
+    type Error = anyhow::Error;
+
+    fn try_from(track: FullTrack) -> Result<Self, Self::Error> {
         let artist_names: Vec<String> = track.artists.iter().map(|a| a.name.clone()).collect();
         let year = track.album.release_date.as_deref()
             .unwrap_or("Unknown")
@@ -39,30 +46,18 @@ impl TryFrom<rspotify::model::FullTrack> for Track {
 }
 
 #[derive(Clone)]
-pub struct SpotifyService {
+pub struct SpotifyMapper {
     client: ClientCredsSpotify,
 }
 
-impl SpotifyService {
-    #[instrument(skip(settings))]
-    pub async fn new(settings: &Settings) -> Result<Self> {
-        let creds = Credentials::new(&settings.client_id, &settings.client_secret);
-        let spotify = ClientCredsSpotify::new(creds);
-        spotify.request_token().await?;
-        info!("Spotify authentication successful");
-
-        Ok(Self { client: spotify })
+impl SpotifyMapper {
+    pub fn new(client: ClientCredsSpotify) -> Self {
+        Self { client }
     }
 
-    #[instrument(skip(self), fields(playlist_id = %playlist_id))]
-    pub async fn get_playlist(&self, playlist_id: PlaylistId) -> Result<Playlist> {
-        let rspotify_playlist_id: RspotifyPlaylistId<'static> = playlist_id.clone().try_into()?;
-        
-        let playlist = self.client.playlist(rspotify_playlist_id, None, None).await?;
-
-        let mut tracks_stream = self
-            .client
-            .playlist_items(playlist.id, None, None);
+    pub async fn map_full_playlist(&self, full_playlist: FullPlaylist) -> Result<Playlist> {
+        let playlist_id = full_playlist.id.clone();
+        let mut tracks_stream = self.client.playlist_items(playlist_id.clone(), None, None);
         
         let mut tracks = Vec::new();
         let mut skipped_tracks = 0;
@@ -78,12 +73,12 @@ impl SpotifyService {
         }
         
         if skipped_tracks > 0 {
-            warn!("Skipped {} non-track items", skipped_tracks);
+            tracing::warn!("Skipped {} non-track items", skipped_tracks);
         }
         
         Ok(Playlist {
-            id: playlist_id,
-            name: playlist.name,
+            id: playlist_id.try_into()?,
+            name: full_playlist.name,
             tracks,
         })
     }
