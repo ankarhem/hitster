@@ -31,14 +31,27 @@ impl FromStr for PlaylistId {
         }
         
         // Extract ID from URL if needed
-        let id = if trimmed.contains("spotify.com/playlist/") {
-            trimmed
-                .split("spotify.com/playlist/")
-                .nth(1)
-                .and_then(|s| s.split('?').next())
-                .ok_or_else(|| anyhow::anyhow!("Invalid Spotify playlist URL"))?
+        let id = if trimmed.contains("open.spotify.com/playlist/") {
+            // Handle https://open.spotify.com/playlist/ID format
+            let parts: Vec<&str> = trimmed.split('/').collect();
+            if let Some(last_part) = parts.last() {
+                last_part.split('?').next().unwrap_or(last_part)
+            } else {
+                return Err(anyhow::anyhow!("Invalid Spotify playlist URL"));
+            }
+        } else if trimmed.contains("spotify:playlist:") {
+            // Handle spotify:playlist:ID format
+            let parts: Vec<&str> = trimmed.split(':').collect();
+            if let Some(id) = parts.last() {
+                id.split('?').next().unwrap_or(id)
+            } else {
+                return Err(anyhow::anyhow!("Invalid Spotify playlist URI"));
+            }
+        } else if !trimmed.contains('/') && !trimmed.contains(':') {
+            // Handle raw ID format
+            trimmed.split('?').next().unwrap_or(trimmed)
         } else {
-            trimmed
+            return Err(anyhow::anyhow!("Invalid Spotify playlist format"));
         };
         
         if id.is_empty() {
@@ -83,6 +96,18 @@ mod tests {
     }
 
     #[test]
+    fn test_playlist_id_from_spotify_uri() {
+        let id = PlaylistId::from_str("spotify:playlist:3vnwX8FuGWpGgQX4hBa8sE").unwrap();
+        assert_eq!(id.as_str(), "3vnwX8FuGWpGgQX4hBa8sE");
+    }
+
+    #[test]
+    fn test_playlist_id_from_spotify_uri_with_query() {
+        let id = PlaylistId::from_str("spotify:playlist:3vnwX8FuGWpGgQX4hBa8sE?si=xyz").unwrap();
+        assert_eq!(id.as_str(), "3vnwX8FuGWpGgQX4hBa8sE");
+    }
+
+    #[test]
     fn test_playlist_id_empty_string() {
         let result = PlaylistId::from_str("");
         assert!(result.is_err());
@@ -90,7 +115,13 @@ mod tests {
 
     #[test]
     fn test_playlist_id_invalid_url() {
-        let result = PlaylistId::from_str("");
+        let result = PlaylistId::from_str("https://invalid.com/playlist/xyz");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_playlist_id_invalid_format() {
+        let result = PlaylistId::from_str("https://open.spotify.com/track/xyz");
         assert!(result.is_err());
     }
 }
