@@ -1,4 +1,5 @@
 pub mod config;
+pub mod domain;
 pub mod infrastructure;
 pub mod application;
 pub mod web;
@@ -10,5 +11,5 @@ pub use web::WebServer;
 pub use web::generate_qr_data_url;
 pub use web::templates::{CardsTemplate, CardTemplate};
 pub use web::AppError;
-pub use application::{HitsterService, Playlist, PlaylistId, Track};
+pub use application::{Playlist, PlaylistId, Track};
 pub use pdf_generator::generate_pdfs;

@@ -23,13 +23,24 @@ pub struct Job {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[sqlx(type_name = "text")]
 pub enum JobStatus {
     Pending,
     Processing,
     Completed,
     Failed,
+}
+
+impl std::fmt::Display for JobStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JobStatus::Pending => write!(f, "pending"),
+            JobStatus::Processing => write!(f, "processing"),
+            JobStatus::Completed => write!(f, "completed"),
+            JobStatus::Failed => write!(f, "failed"),
+        }
+    }
 }
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
@@ -170,21 +181,6 @@ impl Database {
         Ok(playlist)
     }
 
-    /// Cleanup orphaned playlists (those without tracks)
-    pub async fn cleanup_orphaned_playlists(&self) -> anyhow::Result<usize> {
-        let result = sqlx::query(
-            r#"
-            DELETE FROM playlists
-            WHERE id NOT IN (
-                SELECT DISTINCT playlist_id FROM tracks
-            )
-            "#,
-        )
-        .execute(&self.pool)
-        .await?;
-        
-        Ok(result.rows_affected() as usize)
-    }
 
     // Job operations
     pub async fn create_job(&self, playlist_id: &str) -> anyhow::Result<Job> {

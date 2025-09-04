@@ -1,4 +1,5 @@
 use crate::web::templates::ErrorTemplate;
+use crate::domain::errors::DomainError;
 use askama::Template;
 use axum::response::{IntoResponse, Response};
 use axum::http::{StatusCode, HeaderValue};
@@ -10,6 +11,8 @@ pub enum AppError {
     Anything(#[from] anyhow::Error),
     /// IO error: {0}
     Io(#[from] std::io::Error),
+    /// Domain error: {0}
+    Domain(#[from] DomainError),
     /// Invalid Spotify playlist URL: {0}
     InvalidPlaylistUrl(String),
     /// Spotify API error: {0}
@@ -18,6 +21,10 @@ pub enum AppError {
     DatabaseError(String),
     /// Playlist not found: {0}
     PlaylistNotFound(String),
+    /// Validation error: {0}
+    ValidationError(String),
+    /// Template error: {0}
+    Template(#[from] askama::Error),
 }
 
 impl IntoResponse for AppError {
@@ -28,6 +35,40 @@ impl IntoResponse for AppError {
             },
             AppError::Io(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "An I/O error occurred", "A file system error occurred. Please try again.".to_string())
+            },
+            AppError::Domain(domain_err) => {
+                match domain_err {
+                    DomainError::PlaylistNotFound(id) => {
+                        (StatusCode::NOT_FOUND, "Playlist not found", format!("The requested playlist with ID '{}' was not found.", id))
+                    },
+                    DomainError::JobNotFound(id) => {
+                        (StatusCode::NOT_FOUND, "Job not found", format!("The requested job with ID '{}' was not found.", id))
+                    },
+                    DomainError::PdfNotFound(id) => {
+                        (StatusCode::NOT_FOUND, "PDF not found", format!("The requested PDF with ID '{}' was not found.", id))
+                    },
+                    DomainError::InvalidPlaylistId(id) => {
+                        (StatusCode::BAD_REQUEST, "Invalid playlist ID", format!("The playlist ID '{}' is invalid.", id))
+                    },
+                    DomainError::InvalidJobId(id) => {
+                        (StatusCode::BAD_REQUEST, "Invalid job ID", format!("The job ID '{}' is invalid.", id))
+                    },
+                    DomainError::InvalidPdfSide(side) => {
+                        (StatusCode::BAD_REQUEST, "Invalid PDF side", format!("The PDF side '{}' is invalid.", side))
+                    },
+                    DomainError::PdfGenerationFailed(msg) => {
+                        (StatusCode::INTERNAL_SERVER_ERROR, "PDF generation failed", format!("PDF generation failed: {}", msg))
+                    },
+                    DomainError::SpotifyError(msg) => {
+                        (StatusCode::BAD_GATEWAY, "Spotify API error", format!("Spotify API error: {}", msg))
+                    },
+                    DomainError::ValidationError(msg) => {
+                        (StatusCode::BAD_REQUEST, "Validation error", format!("Validation error: {}", msg))
+                    },
+                    DomainError::BusinessRuleViolation(msg) => {
+                        (StatusCode::BAD_REQUEST, "Business rule violation", format!("Business rule violation: {}", msg))
+                    },
+                }
             },
             AppError::InvalidPlaylistUrl(url) => {
                 (StatusCode::BAD_REQUEST, "Invalid Spotify playlist URL", format!("The URL '{}' doesn't appear to be a valid Spotify playlist URL. Please check the URL and try again.", url))
@@ -40,6 +81,12 @@ impl IntoResponse for AppError {
             },
             AppError::PlaylistNotFound(id) => {
                 (StatusCode::NOT_FOUND, "Playlist not found", format!("The requested playlist with ID '{}' was not found.", id))
+            },
+            AppError::ValidationError(msg) => {
+                (StatusCode::BAD_REQUEST, "Validation error", format!("Validation error: {}", msg))
+            },
+            AppError::Template(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Template error", "A template error occurred while rendering the page.".to_string())
             },
         };
         
