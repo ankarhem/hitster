@@ -198,8 +198,10 @@
 </div>
 
 <script>
-    let jobId = null;
     let pollInterval = null;
+
+    let jobId = '{{ job_id }}';
+    let playlistId = '{{ playlist_id }}';
 
     // Check if we already have a completed job
     {% if has_completed_job %}
@@ -221,13 +223,13 @@
         fullCards.classList.add('fade-out');
         
         // Call API to start generation
-        fetch('/api/generate/{{ job_id }}', {
+        fetch(`/api/generate/${jobId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                playlist_id: {{ playlist_id }}
+                playlist_id: playlistId
             })
         })
         .then(response => response.json())
@@ -278,7 +280,6 @@
     }
 
     function downloadPDF(type) {
-        const playlistId = {{ playlist_id }};
         window.location.href = `/api/download/${playlistId}/${type}`;
     }
 
