@@ -1,12 +1,8 @@
-pub mod entities;
-
 use sqlx::{Pool, Sqlite};
 use crate::application::IPlaylistRepository;
-use crate::domain::{Job, JobId, JobStatus, JobType, Playlist, PlaylistId, SpotifyId};
+use crate::domain::{Job, Playlist, PlaylistId, SpotifyId};
 use crate::Settings;
 use uuid::Uuid;
-use std::str::FromStr;
-use chrono::Utc;
 use crate::infrastructure::entities::{JobEntity, PlaylistEntity, TrackEntity};
 
 #[derive(Clone)]
@@ -40,22 +36,17 @@ impl IPlaylistRepository for PlaylistRepository {
         .await?;
         
         for (position, track) in playlist.tracks.iter().enumerate() {
-            let track_id = Uuid::new_v4().to_string();
-            let playlist_id_str = playlist.id.to_string();
-            let track_title = track.title.clone();
-            let track_artist = track.artist.clone();
-            let track_year = track.year.to_string();
-            let track_url = track.spotify_url.clone();
+            let track_id = Uuid::new_v4();
             let track_position = position as i32;
             
             sqlx::query!(
                 "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 track_id,
                 playlist_id_str,
-                track_title,
-                track_artist,
-                track_year,
-                track_url,
+                track.title,
+                track.artist,
+                track.year,
+                track.spotify_url,
                 track_position
             )
             .execute(&mut *tx)
@@ -129,31 +120,7 @@ impl IPlaylistRepository for PlaylistRepository {
             return Ok(None);
         }
         
-        let jobs = job_entities.into_iter().map(|entity| {
-            let job_id = JobId::from_str(&entity.id)
-                .unwrap_or_else(|_| JobId::new());
-            
-            let status = match entity.status.as_str() {
-                "pending" => JobStatus::Pending,
-                "processing" => JobStatus::Processing,
-                "completed" => JobStatus::Completed,
-                "failed" => JobStatus::Failed,
-                _ => JobStatus::Pending,
-            };
-            
-            Job {
-                id: job_id,
-                job_type: JobType::GeneratePlaylistPdf {
-                    id: playlist_id.clone(),
-                },
-                status,
-                created_at: entity.created_at.unwrap_or_else(Utc::now),
-                completed_at: entity.completed_at,
-                front_pdf_path: entity.front_pdf_path,
-                back_pdf_path: entity.back_pdf_path,
-            }
-        }).collect();
-        
+        let jobs = job_entities.into_iter().map(Job::from).collect();
         Ok(Some(jobs))
     }
 }

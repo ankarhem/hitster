@@ -26,6 +26,12 @@ impl FromStr for PlaylistId {
     }
 }
 
+impl From<Uuid> for PlaylistId {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
 /// Represents a Spotify playlist with tracks
 #[derive(Debug, Clone)]
 pub struct Playlist {
