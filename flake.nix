@@ -51,6 +51,11 @@
             sqlx-cli
           ];
 
+          shellHook = ''
+            export DATABASE_URL="sqlite://./db/hitster.db"
+            cargo sqlx prepare
+          '';
+
           env = {
             # Required by rust-analyzer
             RUST_SRC_PATH =
