@@ -1,12 +1,17 @@
+use sqlx::{Pool, Sqlite};
 use crate::application::IJobRepository;
 use crate::domain::{Job, JobId, JobType};
 
 #[derive(Clone)]
-pub struct JobsRepository {}
+pub struct JobsRepository {
+    pool: Pool<Sqlite>,
+}
 
 impl JobsRepository {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(pool: Pool<Sqlite>) -> Self {
+        Self {
+            pool,
+        }
     }
 }
 

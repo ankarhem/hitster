@@ -1,4 +1,5 @@
 use anyhow::Result;
+use sqlx::sqlite::SqliteConnectOptions;
 use hitster::{SpotifyClient};
 use hitster::application::{JobService, PlaylistService};
 use hitster::infrastructure::JobsRepository;
@@ -15,8 +16,14 @@ async fn main() -> Result<()> {
 
     // infrastructure
     let spotify_client = SpotifyClient::new(&settings).await?;
-    let jobs_repository = JobsRepository::new();
-    let playlist_repository = PlaylistRepository::new(&settings).await?;
+    
+    let sqlite_pool = sqlx::SqlitePool::connect_with(
+        SqliteConnectOptions::new()
+            .create_if_missing(true)
+            .filename(&settings.database_url)
+    ).await?;
+    let jobs_repository = JobsRepository::new(sqlite_pool.clone());
+    let playlist_repository = PlaylistRepository::new(&settings, sqlite_pool).await?;
     
     // application
     let jobs_service = JobService::new(jobs_repository.clone());

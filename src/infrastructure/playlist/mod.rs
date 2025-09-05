@@ -1,13 +1,18 @@
+use sqlx::{Pool, Sqlite};
 use crate::application::IPlaylistRepository;
 use crate::domain::{Job, JobId, JobType, Playlist, PlaylistId, SpotifyId};
 use crate::Settings;
 
 #[derive(Clone)]
-pub struct PlaylistRepository {}
+pub struct PlaylistRepository {
+    pool: Pool<Sqlite>,
+}
 
 impl PlaylistRepository {
-    pub async fn new(settings: &Settings) -> anyhow::Result<Self> {
-        Ok(Self {})
+    pub async fn new(settings: &Settings, pool: Pool<Sqlite>) -> anyhow::Result<Self> {
+        Ok(Self {
+            pool,
+        })
     }
 }
 
