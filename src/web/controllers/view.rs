@@ -26,9 +26,9 @@ where
     JobsService: IJobService,
     PlaylistService: IPlaylistService,
 {
-    let playlist_id = PlaylistId::from_str(&playlist_id)?;
+    let playlist_id = playlist_id.parse()?;
     let playlist = match server.playlist_service.get_playlist(&playlist_id).await? {
-        None => todo!(),
+        None => todo!("Handle playlist not found"),
         Some(p) => p,
     };
 
