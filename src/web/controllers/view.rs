@@ -1,15 +1,15 @@
 use crate::application::job_service::IJobService;
 use crate::application::playlist_service::IPlaylistService;
-use crate::domain::{JobType, PlaylistId};
+use crate::domain::{JobType};
 use crate::web::server::Services;
-use crate::web::templates::{CardTemplate, IndexTemplate, PlaylistTemplate};
+use crate::web::templates::{IndexTemplate, PlaylistTemplate};
 use askama::Template;
 use axum::{
     extract::{Path, State},
     response::Html,
 };
-use std::str::FromStr;
 use crate::web::error::TemplateError;
+use crate::web::templates::playlist::TrackVM;
 
 pub async fn index() -> Result<Html<String>, TemplateError> {
     let template = IndexTemplate {
@@ -39,21 +39,32 @@ where
         })
         .await?;
 
-    let cards: Vec<CardTemplate> = playlist
+    let total_tracks = playlist.tracks.len();
+    let tracks: Vec<TrackVM> = playlist
         .tracks
         .iter()
-        .map(|track| CardTemplate {
-            title: track.title.clone(),
-            artist: track.artist.clone(),
-            year: track.year,
-            qr_code: format!("QR code for {}", track.title), // Placeholder
+        .take(20)
+        .map(|track| {
+            let code = qrcode::QrCode::new(&track.spotify_url).unwrap();
+            let svg = code.render::<qrcode::render::svg::Color>()
+                .min_dimensions(0, 200)
+                .max_dimensions(200, 200)
+                .build();
+            let svg = svg.replace(r#"crispEdges""#, r#"crispEdges" style="height: 100%; width: 100%""#);
+
+            TrackVM {
+                title: track.title.clone(),
+                artist: track.artist.clone(),
+                year: track.year,
+                qr_code: svg,
+            }
         })
         .collect();
 
     let template = PlaylistTemplate {
         title: playlist.name.clone(),
-        total_cards: playlist.tracks.len(),
-        cards,
+        total_tracks,
+        tracks,
         job_id: job.id.to_string(),
         playlist_id: playlist_id.to_string(),
         has_completed_job: false,
