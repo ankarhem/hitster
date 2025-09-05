@@ -1,19 +1,22 @@
+use crate::application::job_service::IJobService;
+use crate::application::playlist_service::IPlaylistService;
+use crate::domain::{JobType, PlaylistId};
+use crate::web::AppError;
+use crate::web::server::Services;
+use crate::web::templates::{CardTemplate, IndexTemplate, PlaylistTemplate};
+use askama::Template;
 use axum::{
     extract::{Path, State},
     response::Html,
 };
-use crate::web::{AppError};
-use crate::web::templates::{CardsTemplate, CardTemplate};
-use askama::Template;
 use std::str::FromStr;
-use crate::application::job_service::IJobService;
-use crate::application::playlist_service::IPlaylistService;
-use crate::domain::{JobType, PlaylistId};
-use crate::web::server::Services;
 
-pub async fn index() -> Html<String> {
-        Html("<h1>Enter Playlist URL</h1><form method=\"post\" action=\"/api/playlist\"><input type=\"text\" name=\"id\" placeholder=\"Spotify Playlist URL\"><button type=\"submit\">Submit</button></form>".to_string())
-    }
+pub async fn index() -> Result<Html<String>, AppError> {
+    let template = IndexTemplate {
+        title: "Welcome to Playlist Card Generator".to_string(),
+    };
+    Ok(Html(template.render()?))
+}
 
 pub async fn view_playlist<JobsService, PlaylistService>(
     State(server): State<Services<JobsService, PlaylistService>>,
@@ -28,19 +31,26 @@ where
         None => todo!(),
         Some(p) => p,
     };
-    
-    let job = server.job_service.create(&JobType::GeneratePlaylistPdf {
-        id: playlist_id.clone(),
-    }).await?;
-    
-    let cards: Vec<CardTemplate> = playlist.tracks.iter().map(|track| CardTemplate {
-        title: track.title.clone(),
-        artist: track.artist.clone(),
-        year: track.year.clone(),
-        qr_code: format!("QR code for {}", track.title), // Placeholder
-    }).collect();
-    
-    let template = CardsTemplate {
+
+    let job = server
+        .job_service
+        .create(&JobType::GeneratePlaylistPdf {
+            id: playlist_id.clone(),
+        })
+        .await?;
+
+    let cards: Vec<CardTemplate> = playlist
+        .tracks
+        .iter()
+        .map(|track| CardTemplate {
+            title: track.title.clone(),
+            artist: track.artist.clone(),
+            year: track.year.clone(),
+            qr_code: format!("QR code for {}", track.title), // Placeholder
+        })
+        .collect();
+
+    let template = PlaylistTemplate {
         title: playlist.name.clone(),
         total_cards: playlist.tracks.len(),
         cards,
@@ -48,6 +58,6 @@ where
         playlist_id: playlist_id.to_string(),
         has_completed_job: false,
     };
-    
+
     Ok(Html(template.render()?))
 }

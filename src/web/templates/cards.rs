@@ -2,8 +2,8 @@ use crate::CardTemplate;
 
 /// Template context for the cards page
 #[derive(askama::Template, Debug)]
-#[template(path = "cards.html")]
-pub struct CardsTemplate {
+#[template(path = "playlist.html")]
+pub struct PlaylistTemplate {
     /// Page title
     pub title: String,
     /// Total number of cards

@@ -5,7 +5,7 @@
 pub mod components;
 pub use components::CardTemplate;
 pub mod cards;
-pub use cards::CardsTemplate;
+pub use cards::PlaylistTemplate;
 pub mod error;
 pub use error::ErrorTemplate;
 pub mod index;
