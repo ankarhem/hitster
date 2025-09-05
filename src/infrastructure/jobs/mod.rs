@@ -1,5 +1,5 @@
 use sqlx::{Pool, Sqlite};
-use crate::application::IJobRepository;
+use crate::application::IJobsRepository;
 use crate::domain::{Job, JobId, JobType};
 
 #[derive(Clone)]
@@ -15,7 +15,7 @@ impl JobsRepository {
     }
 }
 
-impl IJobRepository for JobsRepository {
+impl IJobsRepository for JobsRepository {
     async fn create(&self, job_type: &JobType) -> anyhow::Result<Job>{
         todo!()
     }

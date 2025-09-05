@@ -1,4 +1,4 @@
-use crate::application::{IJobRepository};
+use crate::application::{IJobsRepository};
 use crate::domain::{JobId, JobType, Job};
 
 #[trait_variant::make(IJobService: Send)]
@@ -8,22 +8,22 @@ pub trait _IJobService: Send + Sync {
 }
 
 #[derive(Clone)]
-pub struct JobService<JobRepository>
-where JobRepository: IJobRepository
+pub struct JobsService<JobsRepository>
+where JobsRepository: IJobsRepository
 {
-    repository: JobRepository
+    repository: JobsRepository
 }
 
-impl<JobRepository> JobService<JobRepository>
-where JobRepository: IJobRepository
+impl<JobsRepository> JobsService<JobsRepository>
+where JobsRepository: IJobsRepository
 {
-    pub fn new(repository: JobRepository) -> Self {
+    pub fn new(repository: JobsRepository) -> Self {
         Self { repository }
     }
 }
 
-impl<JobRepository> IJobService for JobService<JobRepository>
-where JobRepository: IJobRepository
+impl<JobRepository> IJobService for JobsService<JobRepository>
+where JobRepository: IJobsRepository
 {
     async fn create(&self, job_type: &JobType) -> anyhow::Result<Job> {
         match &job_type {

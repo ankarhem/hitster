@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::sqlite::SqliteConnectOptions;
 use hitster::{SpotifyClient};
-use hitster::application::{JobService, PlaylistService};
+use hitster::application::{JobsService, PlaylistService};
 use hitster::infrastructure::JobsRepository;
 use hitster::infrastructure::playlist::PlaylistRepository;
 use hitster::web::server::run;
@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     let playlist_repository = PlaylistRepository::new(&settings, sqlite_pool).await?;
     
     // application
-    let jobs_service = JobService::new(jobs_repository.clone());
+    let jobs_service = JobsService::new(jobs_repository.clone());
     let playlist_service = PlaylistService::new(playlist_repository, spotify_client);
     
     let web_server = run(3000, jobs_service, playlist_service).await?;
