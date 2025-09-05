@@ -17,11 +17,14 @@ async fn main() -> Result<()> {
     // infrastructure
     let spotify_client = SpotifyClient::new(&settings).await?;
     
+    // Database setup
     let sqlite_pool = sqlx::SqlitePool::connect_with(
         SqliteConnectOptions::new()
             .create_if_missing(true)
             .filename(&settings.database_path)
     ).await?;
+    sqlx::migrate!("./migrations").run(&sqlite_pool).await?;
+    
     let jobs_repository = JobsRepository::new(sqlite_pool.clone());
     let playlist_repository = PlaylistRepository::new(sqlite_pool.clone()).await?;
     

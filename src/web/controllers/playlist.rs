@@ -4,6 +4,7 @@ use axum::{
     Form,
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use crate::application::job_service::IJobService;
 use crate::application::playlist_service::IPlaylistService;
 use crate::domain::{PdfSide};
@@ -19,7 +20,7 @@ pub struct CreatePlaylistForm {
 
 #[derive(Serialize)]
 pub struct JobResponse {
-    job_id: String,
+    job_id: Uuid,
 }
 
 pub async fn create_playlist<JobsService, PlaylistService>(
@@ -30,16 +31,11 @@ where
     JobsService: IJobService,
     PlaylistService: IPlaylistService,
 {
-    let playlist_id = form.id.parse()?;
+    let spotify_id = form.id.parse()?;
 
-    match server.playlist_service.get_playlist(&playlist_id).await {
-        Ok(_) => {},
-        Err(_) => {
-            todo!("create ")
-        }
-    }
+    let playlist = server.playlist_service.create_from_spotify(&spotify_id).await?;
 
-    Ok(Redirect::to(&format!("/playlist/{}", playlist_id)))
+    Ok(Redirect::to(&format!("/playlist/{}", playlist.id)))
 }
 
 pub async fn refetch_playlist<JobsService, PlaylistService>(
@@ -64,10 +60,10 @@ where
     PlaylistService: IPlaylistService,
 {
     let playlist_id = playlist_id.parse()?;
-    let job_id = services.playlist_service.generate_playlist_pdfs(&playlist_id).await?;
+    let job = services.playlist_service.generate_playlist_pdfs(&playlist_id).await?;
 
     Ok(Json(JobResponse {
-        job_id: job_id.to_string(),
+        job_id: job.id.into(),
     }))
 }
 

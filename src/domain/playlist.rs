@@ -2,6 +2,7 @@ use std::fmt::Formatter;
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::domain::JobId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaylistId(Uuid);
@@ -14,6 +15,12 @@ impl std::fmt::Display for PlaylistId {
 impl PlaylistId {
     pub fn new() -> Result<Self, anyhow::Error> {
         Ok(Self(Uuid::new_v4()))
+    }
+}
+
+impl From<PlaylistId> for Uuid {
+    fn from(value: PlaylistId) -> Self {
+        value.0
     }
 }
 

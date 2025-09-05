@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::str::FromStr;
 use chrono::{DateTime, Utc};
 use displaydoc::Display;
@@ -13,6 +14,13 @@ impl JobId {
         Self(Uuid::new_v4())
     }
 }
+
+impl From<JobId> for Uuid {
+    fn from(value: JobId) -> Self {
+        value.0
+    }
+}
+
 impl std::fmt::Display for JobId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

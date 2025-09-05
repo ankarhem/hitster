@@ -1,4 +1,4 @@
-use crate::domain::{Playlist, PlaylistId, Pdf, PdfSide, JobId, SpotifyId, JobType};
+use crate::domain::{Playlist, PlaylistId, Pdf, PdfSide, JobId, SpotifyId, JobType, Job};
 use tracing::info;
 use crate::application::{IPlaylistRepository, ISpotifyClient, IJobsRepository};
 
@@ -6,7 +6,7 @@ use crate::application::{IPlaylistRepository, ISpotifyClient, IJobsRepository};
 pub trait _IPlaylistService: Send + Sync {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Playlist>;
     async fn get_playlist(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>>;
-    async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<JobId>;
+    async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job>;
     async fn get_playlist_pdf(&self, id: &PlaylistId, side: PdfSide) -> anyhow::Result<Pdf>;
     async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<()>;
 }
@@ -66,7 +66,7 @@ where
         self.playlist_repository.get(id).await
     }
 
-    async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<JobId> {
+    async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job> {
         // First verify the playlist exists
         let playlist = match self.playlist_repository.get(id).await? {
             Some(playlist) => playlist,
@@ -80,7 +80,7 @@ where
         let job = self.jobs_repository.create(&job_type).await?;
         
         info!("Created PDF generation job {} for playlist {}", job.id, playlist.id);
-        Ok(job.id)
+        Ok(job)
     }
 
     async fn get_playlist_pdf(&self, id: &PlaylistId, side: PdfSide) -> anyhow::Result<Pdf> {
