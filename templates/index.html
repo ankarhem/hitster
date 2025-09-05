@@ -1,15 +1,12 @@
 {% extends "base.html" %}
 
-{% block head %}
-{% endblock %}
-
 {% block body %}
 <div class="min-h-screen flex items-center justify-center px-4 py-12">
     <div class="max-w-xl w-full space-y-8">
         <!-- Header -->
         <div class="text-center">
             <div class="mb-6">
-                <i class="fas fa-music text-5xl spotify-green"></i>
+                <i class="fas fa-music text-5xl text-green-500"></i>
             </div>
             <h1 class="text-5xl font-bold text-white mb-4">
                 Hitster Cards
@@ -20,7 +17,7 @@
         </div>
 
         <!-- Main Form -->
-        <div class="bg-spotify-dark rounded-lg p-8 border border-gray-800">
+        <div class="bg-gray-800 rounded-lg p-8 border border-gray-800">
             <form method="post" action="/api/playlist" class="space-y-6">
                 <div>
                     <div class="flex items-center gap-2 mb-2">
@@ -41,7 +38,7 @@
                 
                 <button 
                     type="submit" 
-                    class="w-full spotify-green-bg text-white font-semibold py-3 px-6 rounded-lg spotify-green-hover transition duration-200"
+                    class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg spotify-green-hover transition duration-200"
                 >
                     Generate Cards
                 </button>

@@ -14,19 +14,6 @@
         transition: opacity 0.5s ease-in-out;
     }
 
-    .spotify-green {
-        background-color: #1DB954;
-    }
-
-    .spotify-green:hover {
-        background-color: #1ed760;
-    }
-
-    .spotify-green:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-    }
-
     .loading-spinner {
         border: 3px solid #f3f3f3;
         border-top: 3px solid #1DB954;
@@ -74,7 +61,7 @@
                     <button
                             id="generate-btn"
                             onclick="startGeneration()"
-                            class="spotify-green text-white font-semibold py-2 px-6 rounded-lg hover:shadow-lg transition duration-200 flex items-center space-x-2"
+                            class="bg-green-500 text-white font-semibold py-2 px-6 rounded-lg hover:shadow-lg transition duration-200 flex items-center space-x-2"
                     >
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd"
@@ -154,8 +141,8 @@
                             <button
                                     id="download-front-btn"
                                     onclick="downloadPDF('front')"
-                                    disabled
-                                    class="w-full bg-gray-100 text-gray-400 font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
+                                    disabled="{{has_completed_job == true}}"
+                                    class="w-full bg-green-500 text-white disabled:bg-gray-100 disabled:text-gray-400 font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
                             >
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
@@ -169,7 +156,7 @@
                                     id="download-back-btn"
                                     onclick="downloadPDF('back')"
                                     disabled
-                                    class="w-full bg-gray-100 text-gray-400 font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
+                                    class="w-full bg-green-500 text-white disabled:bg-gray-100 disabled:text-gray-400 font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
                             >
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
@@ -269,12 +256,7 @@
         const statusSection = document.getElementById('status-section');
 
         frontBtn.disabled = false;
-        frontBtn.classList.remove('bg-gray-100', 'text-gray-400');
-        frontBtn.classList.add('spotify-green', 'text-white', 'hover:shadow-lg');
-
         backBtn.disabled = false;
-        backBtn.classList.remove('bg-gray-100', 'text-gray-400');
-        backBtn.classList.add('spotify-green', 'text-white', 'hover:shadow-lg');
 
         statusSection.classList.add('hidden');
     }
@@ -286,7 +268,7 @@
     function showSuccess() {
         const generateBtn = document.getElementById('generate-btn');
         generateBtn.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Generation Complete!</span>';
-        generateBtn.classList.remove('spotify-green');
+        generateBtn.classList.remove('bg-green-500');
         generateBtn.classList.add('bg-green-600');
     }
 

@@ -31,9 +31,6 @@ dotenv = "0.15"
 
 # QR code generation
 qrcode = "0.14"
-image = "0.24"
-png = "0.17"
-base64 = "0.21"
 
 # HTML utilities
 html-escape = "0.2"
@@ -42,7 +39,6 @@ html-escape = "0.2"
 askama = "0.14"
 
 # Utilities
-futures = "0.3"
 futures-util = "0.3"
 
 # Logging
