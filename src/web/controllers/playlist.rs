@@ -1,13 +1,14 @@
+use anyhow::bail;
 use axum::{
     extract::{Path, State},
     response::{Redirect, Json},
     Form,
 };
-use crate::web::{AppError};
 use serde::{Deserialize, Serialize};
 use crate::application::job_service::IJobService;
 use crate::application::playlist_service::IPlaylistService;
 use crate::domain::{PdfSide};
+use crate::web::error::ApiError;
 use crate::web::server::Services;
 
 pub struct PlaylistController {}
@@ -25,29 +26,27 @@ pub struct JobResponse {
 pub async fn create_playlist<JobsService, PlaylistService>(
     State(server): State<Services<JobsService, PlaylistService>>,
     Form(form): Form<CreatePlaylistForm>,
-) -> Result<Redirect, AppError>
+) -> Result<Redirect, ApiError>
 where
     JobsService: IJobService,
     PlaylistService: IPlaylistService,
 {
     let playlist_id = form.id.parse()?;
 
-    // Check if playlist exists, if not create it
     match server.playlist_service.get_playlist(&playlist_id).await {
         Ok(_) => {},
         Err(_) => {
-            // TODO: Create playlist from Spotify URL
+            todo!("create ")
         }
     }
 
     Ok(Redirect::to(&format!("/playlist/{}", playlist_id)))
 }
 
-/// POST /api/playlist/<PlaylistId>/refetch-playlist -> Update playlist and tracks in db
 pub async fn refetch_playlist<JobsService, PlaylistService>(
     State(services): State<Services<JobsService, PlaylistService>>,
     Path(playlist_id): Path<String>,
-) -> Result<Json<()>, AppError>
+) -> Result<Json<()>, ApiError>
 where
     JobsService: IJobService,
     PlaylistService: IPlaylistService,
@@ -57,11 +56,10 @@ where
     Ok(Json(()))
 }
 
-/// POST /api/playlist/<PlaylistId>/pdfs -> Respond with job id
 pub async fn generate_pdfs<JobsService, PlaylistService>(
     State(services): State<Services<JobsService, PlaylistService>>,
     Path(playlist_id): Path<String>,
-) -> Result<Json<JobResponse>, AppError>
+) -> Result<Json<JobResponse>, ApiError>
 where
     JobsService: IJobService,
     PlaylistService: IPlaylistService,
@@ -74,11 +72,10 @@ where
     }))
 }
 
-/// GET /api/playlist/<PlaylistId>/pdfs/{front|back} -> Returns the corresponding pdfs
 pub async fn get_pdf<JobsService, PlaylistService>(
     State(server): State<Services<JobsService, PlaylistService>>,
     Path((playlist_id, side)): Path<(String, String)>,
-) -> Result<Vec<u8>, AppError>
+) -> Result<Vec<u8>, ApiError>
 where
     JobsService: IJobService,
     PlaylistService: IPlaylistService,
@@ -87,7 +84,9 @@ where
     let side = match side.as_str() {
         "front" => PdfSide::Front,
         "back" => PdfSide::Back,
-        _ => return Err(AppError::ValidationError("Invalid side".to_string())),
+        _ => {
+            todo!("fix when ApiError is not a placeholder")
+        }
     };
 
     let pdf = server.playlist_service.get_playlist_pdf(&playlist_id, side).await?;

@@ -6,5 +6,4 @@ pub mod controllers;
 
 pub use qr_code::generate_qr_data_url;
 pub use templates::{PlaylistTemplate, CardTemplate};
-pub use error::AppError;
 pub use controllers::*;

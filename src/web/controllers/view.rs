@@ -1,7 +1,6 @@
 use crate::application::job_service::IJobService;
 use crate::application::playlist_service::IPlaylistService;
 use crate::domain::{JobType, PlaylistId};
-use crate::web::AppError;
 use crate::web::server::Services;
 use crate::web::templates::{CardTemplate, IndexTemplate, PlaylistTemplate};
 use askama::Template;
@@ -10,8 +9,10 @@ use axum::{
     response::Html,
 };
 use std::str::FromStr;
+use anyhow::anyhow;
+use crate::web::error::TemplateError;
 
-pub async fn index() -> Result<Html<String>, AppError> {
+pub async fn index() -> Result<Html<String>, TemplateError> {
     let template = IndexTemplate {
         title: "Welcome to Playlist Card Generator".to_string(),
     };
@@ -21,7 +22,7 @@ pub async fn index() -> Result<Html<String>, AppError> {
 pub async fn view_playlist<JobsService, PlaylistService>(
     State(server): State<Services<JobsService, PlaylistService>>,
     Path(playlist_id): Path<String>,
-) -> Result<Html<String>, AppError>
+) -> Result<Html<String>, TemplateError>
 where
     JobsService: IJobService,
     PlaylistService: IPlaylistService,
@@ -58,6 +59,6 @@ where
         playlist_id: playlist_id.to_string(),
         has_completed_job: false,
     };
-
+    
     Ok(Html(template.render()?))
 }

@@ -3,61 +3,32 @@ use askama::Template;
 use axum::response::{IntoResponse, Response};
 use axum::http::{StatusCode, HeaderValue};
 
-/// Application error type for handling all web-related errors
+/// Error type for handling errors in view rendering
 #[derive(Debug, displaydoc::Display, thiserror::Error)]
-pub enum AppError {
-    /// Any error: {0}
-    Anything(#[from] anyhow::Error),
-    /// IO error: {0}
-    Io(#[from] std::io::Error),
-    /// Invalid Spotify playlist URL: {0}
-    InvalidPlaylistUrl(String),
-    /// Spotify API error: {0}
-    SpotifyApiError(String),
-    /// Database error: {0}
-    DatabaseError(String),
-    /// Playlist not found: {0}
-    PlaylistNotFound(String),
-    /// Validation error: {0}
-    ValidationError(String),
-    /// Template error: {0}
-    Template(#[from] askama::Error),
+pub enum TemplateError {
+    /// Template rendering error: {0}
+    RenderError(#[from] askama::Error),
+    ///  error: {0}
+    ApplicationError(#[from] anyhow::Error),
 }
 
-impl IntoResponse for AppError {
+impl IntoResponse for TemplateError {
     fn into_response(self) -> Response {
-        let (status, error_message, user_friendly_message) = match &self {
-            AppError::Anything(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "An internal server error occurred", "An unexpected error occurred. Please try again later.".to_string())
-            },
-            AppError::Io(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "An I/O error occurred", "A file system error occurred. Please try again.".to_string())
-            },
-            AppError::InvalidPlaylistUrl(url) => {
-                (StatusCode::BAD_REQUEST, "Invalid Spotify playlist URL", format!("The URL '{}' doesn't appear to be a valid Spotify playlist URL. Please check the URL and try again.", url))
-            },
-            AppError::SpotifyApiError(details) => {
-                (StatusCode::BAD_GATEWAY, "Spotify API error", format!("Unable to fetch playlist from Spotify: {}. Please check the playlist ID and ensure it's public.", details))
-            },
-            AppError::DatabaseError(_details) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error", "A database error occurred while processing your request. Please try again.".to_string())
-            },
-            AppError::PlaylistNotFound(id) => {
-                (StatusCode::NOT_FOUND, "Playlist not found", format!("The requested playlist with ID '{}' was not found.", id))
-            },
-            AppError::ValidationError(msg) => {
-                (StatusCode::BAD_REQUEST, "Validation error", format!("Validation error: {}", msg))
-            },
-            AppError::Template(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Template error", "A template error occurred while rendering the page.".to_string())
-            },
-        };
-        
-        tracing::error!("Error: {} - Details: {}", self, error_message);
 
+        let status = match self {
+            TemplateError::RenderError(err) => {
+                tracing::error!("Error: {}", err);
+                StatusCode::INTERNAL_SERVER_ERROR
+            },
+            TemplateError::ApplicationError(err) => {
+                tracing::error!("Error: {}", err);
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        };
+        let user_friendly_message = "An unexpected error occurred. Please try again later.";
         // Try to render the error template
         let template = ErrorTemplate {
-            error_message: user_friendly_message.clone(),
+            error_message: user_friendly_message.to_string(),
             status_code: status.as_u16(),
         };
 
@@ -71,10 +42,30 @@ impl IntoResponse for AppError {
                 response
             },
             Err(err) => {
-                tracing::error!("Failed to render error template: {}", err);
+                let message = format!("Failed to render error template: {}", err);
+                tracing::error!(message);
                 // Fallback to plain text error
-                (status, format!("Error: {}", user_friendly_message)).into_response()
+                (status, message).into_response()
             }
         }
+    }
+}
+
+/// Error type for handling api errors
+#[derive(Debug, displaydoc::Display, thiserror::Error)]
+pub enum ApiError {
+    /// Placeholder error: {0}
+    Placeholder(#[from] anyhow::Error),
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        tracing::error!("API Error: {}", self);
+
+        let status = match &self {
+            ApiError::Placeholder(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        (status, self.to_string()).into_response()
     }
 }
