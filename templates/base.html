@@ -5,9 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Hitster Cards{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background-color: #000000;
+        }
+        
+        .spotify-green {
+            color: #1DB954;
+        }
+        
+        .spotify-green-bg {
+            background-color: #1DB954;
+        }
+        
+        .spotify-green-hover:hover {
+            background-color: #1ed760;
+        }
+        
+        .border-spotify {
+            border-color: #1DB954;
+        }
+        
+        .text-spotify {
+            color: #1DB954;
+        }
+        
+        .bg-spotify-dark {
+            background-color: #191414;
+        }
+        
+        .card-hover {
+            transition: all 0.2s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+        }
+        
+        .input-focus:focus {
+            outline: none;
+            border-color: #1DB954;
+            box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.1);
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(29, 185, 84, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #1DB954;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
     {% block head %}{% endblock %}
 </head>
-<body class="bg-white">
+<body class="bg-black text-white min-h-screen">
     {% block body %}{% endblock %}
 </body>
 </html>
