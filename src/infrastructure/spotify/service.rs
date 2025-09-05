@@ -30,7 +30,7 @@ impl ISpotifyClient for SpotifyClient {
     async fn get_playlist(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
-        let full_playlist = self.client.playlist(rspotify_playlist_id.into(), None, None).await?;
+        let full_playlist = self.client.playlist(rspotify_playlist_id, None, None).await?;
         let mut tracks_stream = self.client.playlist_items(full_playlist.id, None, None);
 
         let mut tracks = Vec::new();

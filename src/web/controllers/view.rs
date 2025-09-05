@@ -9,7 +9,6 @@ use axum::{
     response::Html,
 };
 use std::str::FromStr;
-use anyhow::anyhow;
 use crate::web::error::TemplateError;
 
 pub async fn index() -> Result<Html<String>, TemplateError> {
@@ -46,7 +45,7 @@ where
         .map(|track| CardTemplate {
             title: track.title.clone(),
             artist: track.artist.clone(),
-            year: track.year.clone(),
+            year: track.year,
             qr_code: format!("QR code for {}", track.title), // Placeholder
         })
         .collect();

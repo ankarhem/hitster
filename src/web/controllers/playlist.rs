@@ -1,4 +1,3 @@
-use anyhow::bail;
 use axum::{
     extract::{Path, State},
     response::{Redirect, Json},

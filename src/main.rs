@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     let jobs_service = JobsService::new(jobs_repository.clone());
     let playlist_service = PlaylistService::new(playlist_repository, spotify_client);
     
-    let web_server = run(3000, jobs_service, playlist_service).await?;
+    run(3000, jobs_service, playlist_service).await?;
     
     Ok(())
 }

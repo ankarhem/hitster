@@ -147,7 +147,7 @@ impl IPlaylistRepository for PlaylistRepository {
                     id: playlist_id.clone(),
                 },
                 status,
-                created_at: entity.created_at.unwrap_or_else(|| Utc::now()),
+                created_at: entity.created_at.unwrap_or_else(Utc::now),
                 completed_at: entity.completed_at,
                 front_pdf_path: entity.front_pdf_path,
                 back_pdf_path: entity.back_pdf_path,
