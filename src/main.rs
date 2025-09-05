@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
     let sqlite_pool = sqlx::SqlitePool::connect_with(
         SqliteConnectOptions::new()
             .create_if_missing(true)
-            .filename(&settings.database_url)
+            .filename(&settings.database_path)
     ).await?;
     let jobs_repository = JobsRepository::new(sqlite_pool.clone());
     let playlist_repository = PlaylistRepository::new(&settings, sqlite_pool).await?;

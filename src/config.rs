@@ -6,6 +6,7 @@
 use serde::Deserialize;
 use thiserror::Error;
 use dotenv::dotenv;
+use tracing::info;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -23,7 +24,7 @@ pub struct Settings {
     /// Spotify application client secret
     pub client_secret: String,
     /// Database URL
-    pub database_url: String,
+    pub database_path: String,
 }
 
 impl Settings {
@@ -44,13 +45,19 @@ impl Settings {
         let database_url = std::env::var("DATABASE_URL")
             .unwrap_or_else(|_| {
                 let current_dir = std::env::current_dir().unwrap();
-                current_dir.join("db/hitster.db").to_string_lossy().to_string()
+                current_dir.join("sqlite://./db/hitster.db").to_string_lossy().to_string()
             });
+        
+        let database_path = database_url.split("sqlite://").nth(1)
+            .ok_or_else(|| ConfigError::EnvVarNotFound("DATABASE_URL".to_string()))?
+            .to_string();
+        
+        info!("Database URL: {}", database_url);
         
         Ok(Settings {
             client_id,
             client_secret,
-            database_url,
+            database_path,
         })
     }
 }
