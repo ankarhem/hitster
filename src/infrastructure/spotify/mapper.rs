@@ -17,7 +17,7 @@ impl TryFrom<RspotifyPlaylistId<'_>> for PlaylistId {
     type Error = anyhow::Error;
 
     fn try_from(id: RspotifyPlaylistId<'_>) -> Result<Self, Self::Error> {
-        Ok(PlaylistId::from_str(&id.to_string())?)
+        PlaylistId::from_str(&id.to_string())
     }
 }
 

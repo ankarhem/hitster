@@ -6,7 +6,6 @@ use std::net::SocketAddr;
 use crate::application::{JobService, PlaylistService};
 use crate::web::controllers::{ViewController, PlaylistController, JobsController};
 use tracing::info;
-use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct WebServer {

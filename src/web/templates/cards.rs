@@ -1,5 +1,4 @@
 use crate::CardTemplate;
-use crate::application::models::Job;
 
 /// Template context for the cards page
 #[derive(askama::Template, Debug)]

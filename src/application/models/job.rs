@@ -5,6 +5,12 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct JobId(String);
 
+impl Default for JobId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JobId {
     /// Create a new JobId
     pub fn new() -> Self {

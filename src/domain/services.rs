@@ -10,6 +10,12 @@ pub struct PlaylistDomainService {
     // They contain pure business logic
 }
 
+impl Default for PlaylistDomainService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlaylistDomainService {
     /// Create a new playlist domain service
     pub fn new() -> Self {
@@ -85,6 +91,12 @@ pub struct PlaylistPreview {
 pub struct JobDomainService {
     // Domain services don't have dependencies on infrastructure
     // They contain pure business logic
+}
+
+impl Default for JobDomainService {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl JobDomainService {

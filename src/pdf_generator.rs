@@ -172,14 +172,14 @@ impl PdfGenerator {
         );
         
         // Generate back cards in chunks of 12 per page
-        for page in 0..((track_count + 11) / 12) {
+        for page in 0..track_count.div_ceil(12) {
             if page > 0 {
                 html.push_str(r#"<div style="page-break-before: always;"></div>"#);
             }
             
             html.push_str(r#"<div class="card-grid">"#);
             
-            let cards_on_page = if page == (track_count + 11) / 12 - 1 {
+            let cards_on_page = if page == track_count.div_ceil(12) - 1 {
                 let remainder = track_count % 12;
                 if remainder == 0 { 12 } else { remainder }
             } else {
