@@ -11,7 +11,7 @@ pub struct PlaylistRepository {
 }
 
 impl PlaylistRepository {
-    pub async fn new(settings: &Settings, pool: Pool<Sqlite>) -> anyhow::Result<Self> {
+    pub async fn new(pool: Pool<Sqlite>) -> anyhow::Result<Self> {
         Ok(Self {
             pool,
         })

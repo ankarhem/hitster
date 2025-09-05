@@ -23,10 +23,10 @@ async fn main() -> Result<()> {
             .filename(&settings.database_path)
     ).await?;
     let jobs_repository = JobsRepository::new(sqlite_pool.clone());
-    let playlist_repository = PlaylistRepository::new(&settings, sqlite_pool).await?;
+    let playlist_repository = PlaylistRepository::new(sqlite_pool).await?;
     
     // application
-    let jobs_service = JobsService::new(jobs_repository.clone());
+    let jobs_service = JobsService::new(jobs_repository);
     let playlist_service = PlaylistService::new(playlist_repository, spotify_client);
     
     run(3000, jobs_service, playlist_service).await?;
