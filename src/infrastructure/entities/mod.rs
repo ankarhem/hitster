@@ -1,6 +1,6 @@
 use sqlx::FromRow;
 use chrono::{DateTime, Utc};
-use crate::domain::{Playlist, PlaylistId, SpotifyId, Track};
+use crate::domain::{Playlist, PlaylistId, SpotifyId, Track, Job, JobId, JobStatus, JobType};
 use std::str::FromStr;
 
 #[derive(FromRow, Debug, Clone)]
@@ -61,5 +61,30 @@ impl From<(PlaylistEntity, Vec<TrackEntity>)> for Playlist {
         let mut playlist = Playlist::from(playlist_entity);
         playlist.tracks = track_entities.into_iter().map(Track::from).collect();
         playlist
+    }
+}
+
+impl From<JobEntity> for Job {
+    fn from(entity: JobEntity) -> Self {
+        let job_type = JobType::GeneratePlaylistPdf {
+            id: PlaylistId::from_str(&entity.playlist_id).unwrap_or_else(|_| PlaylistId::new().unwrap()),
+        };
+        let status = match entity.status.as_str() {
+            "pending" => JobStatus::Pending,
+            "processing" => JobStatus::Processing,
+            "completed" => JobStatus::Completed,
+            "failed" => JobStatus::Failed,
+            _ => JobStatus::Pending,
+        };
+        
+        Self {
+            id: JobId::from_str(&entity.id).unwrap_or_else(|_| JobId::new()),
+            job_type,
+            status,
+            created_at: entity.created_at.unwrap_or_else(Utc::now),
+            completed_at: entity.completed_at,
+            front_pdf_path: entity.front_pdf_path,
+            back_pdf_path: entity.back_pdf_path,
+        }
     }
 }
