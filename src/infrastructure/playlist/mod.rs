@@ -1,8 +1,7 @@
-use sqlx::{Pool, Sqlite};
+use sqlx::{Pool, Sqlite, types::Uuid};
 use crate::application::IPlaylistRepository;
 use crate::domain::{Job, Playlist, PlaylistId, SpotifyId};
 use crate::Settings;
-use uuid::Uuid;
 use crate::infrastructure::entities::{JobEntity, PlaylistEntity, TrackEntity};
 
 #[derive(Clone)]

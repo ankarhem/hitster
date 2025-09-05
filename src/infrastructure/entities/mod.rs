@@ -1,8 +1,17 @@
-use sqlx::FromRow;
+use sqlx::{FromRow, types::Uuid};
 use chrono::{DateTime, Utc};
 use crate::domain::{Playlist, PlaylistId, SpotifyId, Track, Job, JobId, JobStatus, JobType};
-use uuid::Uuid;
 use std::str::FromStr;
+use uuid::Uuid as StdUuid;
+
+// Helper functions to convert between sqlx::types::Uuid and uuid::Uuid
+fn sqlx_to_std_uuid(sqlx_uuid: Uuid) -> StdUuid {
+    StdUuid::from_bytes(*sqlx_uuid.as_bytes())
+}
+
+fn std_to_sqlx_uuid(std_uuid: StdUuid) -> Uuid {
+    Uuid::from_bytes(*std_uuid.as_bytes())
+}
 
 #[derive(FromRow, Debug, Clone)]
 pub struct PlaylistEntity {
@@ -38,7 +47,7 @@ pub struct JobEntity {
 impl From<PlaylistEntity> for Playlist {
     fn from(entity: PlaylistEntity) -> Self {
         Self {
-            id: PlaylistId::from(entity.id),
+            id: PlaylistId::from(sqlx_to_std_uuid(entity.id)),
             spotify_id: entity.spotify_id.and_then(|s| SpotifyId::from_str(&s).ok()),
             name: entity.name,
             tracks: Vec::new(), // Tracks will be loaded separately
@@ -68,11 +77,11 @@ impl From<(PlaylistEntity, Vec<TrackEntity>)> for Playlist {
 impl From<JobEntity> for Job {
     fn from(entity: JobEntity) -> Self {
         let job_type = JobType::GeneratePlaylistPdf {
-            id: PlaylistId::from(entity.playlist_id),
+            id: PlaylistId::from(sqlx_to_std_uuid(entity.playlist_id)),
         };
         
         Self {
-            id: JobId::from(entity.id),
+            id: JobId::from(sqlx_to_std_uuid(entity.id)),
             job_type,
             status: entity.status,
             created_at: entity.created_at,
@@ -82,3 +91,4 @@ impl From<JobEntity> for Job {
         }
     }
 }
+

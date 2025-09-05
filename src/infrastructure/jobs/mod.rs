@@ -1,9 +1,8 @@
-use sqlx::{Pool, Sqlite};
+use sqlx::{Pool, Sqlite, types::Uuid};
 use crate::application::IJobsRepository;
 use crate::domain::{Job, JobId, JobType, JobStatus};
 use crate::infrastructure::entities::JobEntity;
 use chrono::Utc;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct JobsRepository {
