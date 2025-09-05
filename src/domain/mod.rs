@@ -1,10 +1,7 @@
-//! Domain layer
-//! 
-//! This module contains the core business logic and domain entities
-//! that represent the fundamental concepts of the Hitster application.
+pub mod job;
+pub mod pdf;
+pub mod playlist;
 
-pub mod errors;
-pub mod services;
-
-// pub use errors::{DomainError, DomainResult};
-// pub use services::{PlaylistDomainService, JobDomainService};
+pub use job::*;
+pub use pdf::*;
+pub use playlist::*;

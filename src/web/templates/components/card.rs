@@ -8,6 +8,6 @@
 pub struct CardTemplate { 
     pub title: String,
     pub artist: String,
-    pub year: String,
+    pub year: i32,
     pub qr_code: String,
 }

@@ -1,7 +1,6 @@
 pub mod spotify;
-pub mod database;
-pub mod job_processor;
+pub mod jobs;
+pub mod playlist;
 
-pub use spotify::{SpotifyService};
-pub use database::{Database, Playlist, Job, JobStatus, Track, NewTrack};
-pub use job_processor::JobProcessor;
+pub use spotify::{SpotifyClient};
+pub use jobs::{JobsRepository};

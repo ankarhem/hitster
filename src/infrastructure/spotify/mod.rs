@@ -1,4 +1,3 @@
-pub mod mapper;
 pub mod service;
 
-pub use service::SpotifyService;
+pub use service::SpotifyClient;

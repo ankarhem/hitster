@@ -1,7 +1,9 @@
 use anyhow::Result;
-use hitster::{SpotifyService, WebServer, Database};
+use hitster::{SpotifyClient};
 use hitster::application::{JobService, PlaylistService};
-use std::sync::Arc;
+use hitster::infrastructure::JobsRepository;
+use hitster::infrastructure::playlist::PlaylistRepository;
+use hitster::web::server::run;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -10,19 +12,17 @@ async fn main() -> Result<()> {
         .init();
     
     let settings = hitster::Settings::new()?;
-    let spotify_service = Arc::new(SpotifyService::new(&settings).await?);
+
+    // infrastructure
+    let spotify_client = SpotifyClient::new(&settings).await?;
+    let jobs_repository = JobsRepository::new();
+    let playlist_repository = PlaylistRepository::new(&settings).await?;
     
-    // Initialize database
-    let database = Arc::new(Database::new(&settings.database_url).await?);
+    // application
+    let jobs_service = JobService::new(jobs_repository.clone());
+    let playlist_service = PlaylistService::new(playlist_repository, spotify_client);
     
-    // Initialize job service
-    let job_service = JobService::new(database.clone());
-    
-    // Initialize playlist service
-    let playlist_service = PlaylistService::new(database.clone(), spotify_service.clone());
-    
-    let web_server = WebServer::new(job_service, playlist_service);
-    web_server.run(3000).await?;
+    let web_server = run(3000, jobs_service, playlist_service).await?;
     
     Ok(())
 }

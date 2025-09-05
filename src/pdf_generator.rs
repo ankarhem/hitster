@@ -1,14 +1,14 @@
-use crate::infrastructure::{Playlist, Track};
 use anyhow::Result;
 use std::path::PathBuf;
 use tokio::fs;
 use tracing::{info, instrument};
+use crate::domain::Playlist;
 
 pub struct PdfGenerator;
 
 impl PdfGenerator {
-    #[instrument(skip(playlist, tracks))]
-    pub async fn generate_pdfs(playlist: &Playlist, tracks: &[Track]) -> Result<(String, String)> {
+    #[instrument(skip(playlist), fields(playlist_id = %playlist.id))]
+    pub async fn generate_pdfs(playlist: &Playlist) -> Result<(String, String)> {
         // Create output directory if it doesn't exist
         let output_dir = PathBuf::from("generated_pdfs");
         fs::create_dir_all(&output_dir).await?;
@@ -18,12 +18,12 @@ impl PdfGenerator {
         
         // Generate front PDF
         let front_path = output_dir.join(format!("{}_front.pdf", base_filename));
-        let front_pdf_content = Self::generate_front_pdf(playlist, tracks).await?;
+        let front_pdf_content = Self::generate_front_pdf(playlist).await?;
         fs::write(&front_path, front_pdf_content).await?;
         
         // Generate back PDF
         let back_path = output_dir.join(format!("{}_back.pdf", base_filename));
-        let back_pdf_content = Self::generate_back_pdf(tracks.len()).await?;
+        let back_pdf_content = Self::generate_back_pdf(playlist.tracks.len()).await?;
         fs::write(&back_path, back_pdf_content).await?;
         
         info!("Generated PDFs for playlist {}: {:?}, {:?}", playlist.id, front_path, back_path);
@@ -34,14 +34,14 @@ impl PdfGenerator {
         ))
     }
     
-    async fn generate_front_pdf(playlist: &Playlist, tracks: &[Track]) -> Result<Vec<u8>> {
+    async fn generate_front_pdf(playlist: &Playlist) -> Result<Vec<u8>> {
         // Simple HTML-based PDF generation for now
         // In a real implementation, you'd use a proper PDF library like printpdf
-        let _html = Self::generate_front_html(playlist, tracks);
+        let _html = Self::generate_front_html(playlist);
         
         // For now, return a simple PDF placeholder
         // This would be replaced with actual PDF generation
-        Ok(format!("PDF content for {} tracks", tracks.len()).into_bytes())
+        Ok(format!("PDF content for {} tracks", playlist.tracks.len()).into_bytes())
     }
     
     async fn generate_back_pdf(track_count: usize) -> Result<Vec<u8>> {
@@ -53,7 +53,7 @@ impl PdfGenerator {
         Ok(format!("PDF back content for {} tracks", track_count).into_bytes())
     }
     
-    fn generate_front_html(playlist: &Playlist, tracks: &[Track]) -> String {
+    fn generate_front_html(playlist: &Playlist) -> String {
         let mut html = String::new();
         
         html.push_str(&format!(
@@ -100,7 +100,7 @@ impl PdfGenerator {
         ));
         
         // Generate cards in chunks of 12 per page
-        for (page, chunk) in tracks.chunks(12).enumerate() {
+        for (page, chunk) in playlist.tracks.chunks(12).enumerate() {
             if page > 0 {
                 html.push_str(r#"<div style="page-break-before: always;"></div>"#);
             }
@@ -199,6 +199,6 @@ impl PdfGenerator {
 }
 
 /// Public function to generate PDFs
-pub async fn generate_pdfs(playlist: &Playlist, tracks: &[Track]) -> Result<(String, String)> {
-    PdfGenerator::generate_pdfs(playlist, tracks).await
+pub async fn generate_pdfs(playlist: &Playlist) -> Result<(String, String)> {
+    PdfGenerator::generate_pdfs(playlist).await
 }
