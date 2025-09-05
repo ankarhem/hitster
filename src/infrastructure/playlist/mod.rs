@@ -22,13 +22,13 @@ impl IPlaylistRepository for PlaylistRepository {
     async fn create(&self, playlist: &Playlist) -> anyhow::Result<Playlist> {
         let mut tx = self.pool.begin().await?;
         
-        let playlist_id_str = playlist.id.to_string();
+        let playlist_id_uuid: Uuid = playlist.id.clone().into();
         let spotify_id_str = playlist.spotify_id.as_ref().map(|s| s.to_string());
-        let playlist_name = playlist.name.clone();
+        let playlist_name = &playlist.name;
         
         sqlx::query!(
             "INSERT INTO playlists (id, spotify_id, name) VALUES (?, ?, ?)",
-            playlist_id_str,
+            playlist_id_uuid,
             spotify_id_str,
             playlist_name
         )
@@ -42,7 +42,7 @@ impl IPlaylistRepository for PlaylistRepository {
             sqlx::query!(
                 "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 track_id,
-                playlist_id_str,
+                playlist_id_uuid,
                 track.title,
                 track.artist,
                 track.year,
@@ -61,7 +61,7 @@ impl IPlaylistRepository for PlaylistRepository {
         let playlist_entity = sqlx::query_as::<_, PlaylistEntity>(
             "SELECT id, spotify_id, name, created_at, updated_at FROM playlists WHERE id = ?"
         )
-        .bind(id.to_string())
+        .bind(Uuid::from(id.clone()))
         .fetch_optional(&self.pool)
         .await?;
         
@@ -70,7 +70,7 @@ impl IPlaylistRepository for PlaylistRepository {
                 let tracks = sqlx::query_as::<_, TrackEntity>(
                     "SELECT id, playlist_id, title, artist, year, spotify_url, position FROM tracks WHERE playlist_id = ? ORDER BY position"
                 )
-                .bind(id.to_string())
+                .bind(Uuid::from(id.clone()))
                 .fetch_all(&self.pool)
                 .await?;
                 
@@ -112,7 +112,7 @@ impl IPlaylistRepository for PlaylistRepository {
             ORDER BY created_at DESC
             "#
         )
-        .bind(playlist_id.to_string())
+        .bind(Uuid::from(playlist_id.clone()))
         .fetch_all(&self.pool)
         .await?;
         
