@@ -2,7 +2,6 @@ use std::fmt::Formatter;
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::domain::JobId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaylistId(Uuid);

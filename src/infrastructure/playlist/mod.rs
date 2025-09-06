@@ -1,7 +1,6 @@
 use sqlx::{Pool, Sqlite, types::Uuid};
 use crate::application::IPlaylistRepository;
 use crate::domain::{Job, Playlist, PlaylistId, SpotifyId};
-use crate::Settings;
 use crate::infrastructure::entities::{JobEntity, PlaylistEntity, TrackEntity};
 
 #[derive(Clone)]
@@ -92,7 +91,7 @@ impl IPlaylistRepository for PlaylistRepository {
                 let tracks = sqlx::query_as::<_, TrackEntity>(
                     "SELECT id, playlist_id, title, artist, year, spotify_url, position FROM tracks WHERE playlist_id = ? ORDER BY position"
                 )
-                .bind(playlist.id.clone())
+                .bind(playlist.id)
                 .fetch_all(&self.pool)
                 .await?;
                 

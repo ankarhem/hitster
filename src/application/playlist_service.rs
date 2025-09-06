@@ -1,4 +1,4 @@
-use crate::domain::{Playlist, PlaylistId, Pdf, PdfSide, JobId, SpotifyId, JobType, Job};
+use crate::domain::{Playlist, PlaylistId, Pdf, PdfSide, SpotifyId, JobType, Job};
 use tracing::info;
 use crate::application::{IPlaylistRepository, ISpotifyClient, IJobsRepository};
 

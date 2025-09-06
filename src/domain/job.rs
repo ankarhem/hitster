@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::str::FromStr;
 use chrono::{DateTime, Utc};
 use displaydoc::Display;
