@@ -2,6 +2,7 @@ use std::fmt::Formatter;
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use super::SpotifyId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaylistId(Uuid);
@@ -47,25 +48,6 @@ pub struct Playlist {
     pub tracks: Vec<Track>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SpotifyId(String);
-impl std::fmt::Display for SpotifyId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl FromStr for SpotifyId {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric()) {
-            Ok(Self(s.to_string()))
-        } else {
-            Err(anyhow::anyhow!("Invalid Spotify ID: {}", s))
-        }
-    }
-}
 
 impl Playlist {
     pub fn track_count(&self) -> usize {

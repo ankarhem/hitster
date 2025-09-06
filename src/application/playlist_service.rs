@@ -83,7 +83,7 @@ where
         Ok(job)
     }
 
-    async fn get_playlist_pdf(&self, id: &PlaylistId, side: PdfSide) -> anyhow::Result<Pdf> {
+    async fn get_playlist_pdf(&self, _id: &PlaylistId, _side: PdfSide) -> anyhow::Result<Pdf> {
         todo!()
     }
 

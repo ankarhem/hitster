@@ -27,7 +27,7 @@ where JobRepository: IJobsRepository
 {
     async fn create(&self, job_type: &JobType) -> anyhow::Result<Job> {
         match &job_type {
-            JobType::GeneratePlaylistPdf { id } => {
+            JobType::GeneratePlaylistPdf { id: _ } => {
                 self.repository.create(job_type).await
             }
         }

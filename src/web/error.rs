@@ -56,6 +56,8 @@ impl IntoResponse for TemplateError {
 pub enum ApiError {
     /// Placeholder error: {0}
     Placeholder(#[from] anyhow::Error),
+    /// Spotify ID parsing error: {0}
+    SpotifyIdParseError(#[from] crate::domain::spotify_id::SpotifyIdParserError),
 }
 
 impl IntoResponse for ApiError {
@@ -64,6 +66,7 @@ impl IntoResponse for ApiError {
 
         let status = match &self {
             ApiError::Placeholder(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiError::SpotifyIdParseError(_) => StatusCode::BAD_REQUEST,
         };
 
         (status, self.to_string()).into_response()
