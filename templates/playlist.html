@@ -2,51 +2,6 @@
 
 {% block title %}Hitster Cards - {{ title }}{% endblock %}
 
-{% block head %}
-<style>
-    .fade-out {
-        opacity: 0;
-        transition: opacity 0.5s ease-in-out;
-    }
-
-    .fade-in {
-        opacity: 1;
-        transition: opacity 0.5s ease-in-out;
-    }
-
-    .loading-spinner {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #1DB954;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    .preview-section {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-
-    .preview-item {
-        transition: background-color 0.2s ease;
-    }
-
-    .preview-item:hover {
-        background-color: #f8f9fa;
-    }
-</style>
-{% endblock %}
-
 {% block body %}
 <div class="min-h-screen bg-gray-50">
     <!-- Header -->
