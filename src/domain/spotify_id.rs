@@ -53,12 +53,6 @@ impl From<SpotifyId> for String {
     }
 }
 
-impl From<&str> for SpotifyId {
-    fn from(s: &str) -> Self {
-        Self::parse(s).expect("Failed to parse Spotify ID")
-    }
-}
-
 /// Custom error type for Spotify ID parsing
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpotifyIdParserError {

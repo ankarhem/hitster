@@ -1,5 +1,6 @@
 use std::fmt::Formatter;
 use std::str::FromStr;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use super::SpotifyId;
@@ -45,6 +46,8 @@ pub struct Playlist {
     pub id: PlaylistId,
     pub spotify_id: Option<SpotifyId>,
     pub name: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
     pub tracks: Vec<Track>,
 }
 

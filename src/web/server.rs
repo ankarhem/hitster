@@ -5,46 +5,38 @@ use axum::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::info;
-use crate::application::job_service::IJobService;
 use crate::application::playlist_service::IPlaylistService;
 use crate::web::controllers;
 
 #[derive(Debug, Default)]
-pub struct Services<JobsService, PlaylistService>
+pub struct Services<PlaylistService>
 where
-    JobsService: IJobService,
     PlaylistService: IPlaylistService,
 {
-    pub job_service: Arc<JobsService>,
     pub playlist_service: Arc<PlaylistService>,
 }
 
-impl<JobsService, PlaylistService> Clone for Services<JobsService, PlaylistService>
+impl<PlaylistService> Clone for Services<PlaylistService>
 where
-    JobsService: IJobService,
     PlaylistService: IPlaylistService,
 {
     fn clone(&self) -> Self {
         Self {
-            job_service: self.job_service.clone(),
             playlist_service: self.playlist_service.clone(),
         }
     }
 }
 
-pub async fn run<JobsService, PlaylistService>(
+pub async fn run<PlaylistService>(
     port: u16,
-    jobs_service: JobsService,
-    playlist_service: PlaylistService,
+    playlist_service: Arc<PlaylistService>,
 ) -> anyhow::Result<()>
 where
-    JobsService: IJobService + 'static,
     PlaylistService: IPlaylistService + 'static,
 {
     
     let services = Services {
-        job_service: Arc::new(jobs_service),
-        playlist_service: Arc::new(playlist_service),
+        playlist_service,
     };
     
     let app = Router::new()
@@ -55,11 +47,8 @@ where
         // Playlist API endpoints
         .route("/api/playlist", post(controllers::playlist::create_playlist))
         .route("/api/playlist/:playlist_id/refetch-playlist", post(controllers::playlist::refetch_playlist))
-        .route("/api/playlist/:playlist_id/pdfs", post(controllers::playlist::generate_pdfs))
-        .route("/api/playlist/:playlist_id/pdfs/:side", get(controllers::playlist::get_pdf))
-        
-        // Jobs API endpoints
-        .route("/api/jobs/:job_id", get(controllers::jobs::get_job))
+        .route("/api/playlist/:playlist_id/generate-pdfs", post(controllers::playlist::generate_pdfs))
+        .route("/api/playlist/:playlist_id/pdfs", get(controllers::playlist::get_pdfs))
         
         .with_state(services);
 

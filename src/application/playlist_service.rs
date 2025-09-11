@@ -1,4 +1,5 @@
-use crate::domain::{Playlist, PlaylistId, Pdf, PdfSide, SpotifyId, JobType, Job};
+use std::sync::Arc;
+use crate::domain::{Playlist, PlaylistId, Pdf, SpotifyId, Job};
 use tracing::info;
 use crate::application::{IPlaylistRepository, ISpotifyClient, IJobsRepository};
 
@@ -7,8 +8,8 @@ pub trait _IPlaylistService: Send + Sync {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Playlist>;
     async fn get_playlist(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>>;
     async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job>;
-    async fn get_playlist_pdf(&self, id: &PlaylistId, side: PdfSide) -> anyhow::Result<Pdf>;
-    async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<()>;
+    async fn get_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<[Pdf; 2]>;
+    async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<Job>;
 }
 
 #[derive(Clone)]
@@ -18,9 +19,9 @@ where
     SpotifyClient: ISpotifyClient,
     JobsRepository: IJobsRepository,
 {
-    spotify_client: SpotifyClient,
-    playlist_repository: PlaylistRepository,
-    jobs_repository: JobsRepository,
+    spotify_client: Arc<SpotifyClient>,
+    playlist_repository: Arc<PlaylistRepository>,
+    jobs_repository: Arc<JobsRepository>,
 }
 
 impl<SpotifyClient, PlaylistRepository, JobsRepository> PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
@@ -29,7 +30,11 @@ where
       SpotifyClient: ISpotifyClient,
       JobsRepository: IJobsRepository,
 {
-    pub fn new(playlist_repository: PlaylistRepository, spotify_client: SpotifyClient, jobs_repository: JobsRepository) -> Self {
+    pub fn new(
+        playlist_repository: Arc<PlaylistRepository>,
+        spotify_client: Arc<SpotifyClient>,
+        jobs_repository: Arc<JobsRepository>
+    ) -> Self {
         Self {
             spotify_client,
             playlist_repository,
@@ -67,7 +72,6 @@ where
     }
 
     async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job> {
-        // First verify the playlist exists
         let playlist = match self.playlist_repository.get(id).await? {
             Some(playlist) => playlist,
             None => {
@@ -75,19 +79,14 @@ where
             }
         };
 
-        // Create a job to generate PDFs for this playlist
-        let job_type = JobType::GeneratePlaylistPdf { id: playlist.id.clone() };
-        let job = self.jobs_repository.create(&job_type).await?;
-        
-        info!("Created PDF generation job {} for playlist {}", job.id, playlist.id);
-        Ok(job)
-    }
-
-    async fn get_playlist_pdf(&self, _id: &PlaylistId, _side: PdfSide) -> anyhow::Result<Pdf> {
         todo!()
     }
 
-    async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<()> {
+    async fn get_playlist_pdfs(&self, _id: &PlaylistId) -> anyhow::Result<[Pdf;2]> {
+        todo!()
+    }
+
+    async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<Job> {
         // Get the current playlist to preserve its ID and get Spotify ID
         let current_playlist = match self.playlist_repository.get(id).await? {
             Some(playlist) => playlist,
@@ -112,25 +111,6 @@ where
             }
         };
 
-        // Create a new playlist with the fresh data but preserve the original ID
-        let updated_playlist = Playlist {
-            id: current_playlist.id,
-            spotify_id: fresh_playlist.spotify_id,
-            name: fresh_playlist.name,
-            tracks: fresh_playlist.tracks,
-        };
-
-        // Note: The repository's create method currently only handles inserts.
-        // For a complete implementation, we would need an update method or
-        // the create method should handle upserts. For now, we'll create
-        // a new playlist with the same ID, which might fail due to 
-        // primary key constraints.
-        
-        // TODO: Implement proper update/upsert functionality in the repository
-        // For now, this will work if the repository handles duplicate IDs gracefully
-        self.playlist_repository.create(&updated_playlist).await?;
-        
-        info!("Refreshed playlist {} with fresh data from Spotify {}", updated_playlist.id, spotify_id);
-        Ok(())
+        todo!()
     }
 }

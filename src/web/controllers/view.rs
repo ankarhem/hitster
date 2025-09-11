@@ -1,6 +1,4 @@
-use crate::application::job_service::IJobService;
 use crate::application::playlist_service::IPlaylistService;
-use crate::domain::{JobType};
 use crate::web::server::Services;
 use crate::web::templates::{IndexTemplate, PlaylistTemplate};
 use askama::Template;
@@ -18,12 +16,11 @@ pub async fn index() -> Result<Html<String>, TemplateError> {
     Ok(Html(template.render()?))
 }
 
-pub async fn view_playlist<JobsService, PlaylistService>(
-    State(server): State<Services<JobsService, PlaylistService>>,
+pub async fn view_playlist<PlaylistService>(
+    State(server): State<Services<PlaylistService>>,
     Path(playlist_id): Path<String>,
 ) -> Result<Html<String>, TemplateError>
 where
-    JobsService: IJobService,
     PlaylistService: IPlaylistService,
 {
     let playlist_id = playlist_id.parse()?;
@@ -31,13 +28,6 @@ where
         None => todo!("Handle playlist not found"),
         Some(p) => p,
     };
-
-    let job = server
-        .job_service
-        .create(&JobType::GeneratePlaylistPdf {
-            id: playlist_id.clone(),
-        })
-        .await?;
 
     let total_tracks = playlist.tracks.len();
     let tracks: Vec<TrackVM> = playlist
@@ -65,7 +55,7 @@ where
         title: playlist.name.clone(),
         total_tracks,
         tracks,
-        job_id: job.id.to_string(),
+        job_id: "not implemented".to_string(),
         playlist_id: playlist_id.to_string(),
         has_completed_job: false,
     };

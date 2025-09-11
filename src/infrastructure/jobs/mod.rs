@@ -1,8 +1,8 @@
-use sqlx::{Pool, Sqlite, types::Uuid};
+use sqlx::{Pool, Sqlite};
+use uuid::Uuid;
 use crate::application::IJobsRepository;
-use crate::domain::{Job, JobId, JobType, JobStatus};
-use crate::infrastructure::entities::JobEntity;
-use chrono::Utc;
+use crate::domain;
+use crate::infrastructure::entities::{JobEntity};
 
 #[derive(Clone)]
 pub struct JobsRepository {
@@ -18,43 +18,36 @@ impl JobsRepository {
 }
 
 impl IJobsRepository for JobsRepository {
-    async fn create(&self, job_type: &JobType) -> anyhow::Result<Job> {
-        let job_id = JobId::new();
-        let playlist_id = match job_type {
-            JobType::GeneratePlaylistPdf { id } => id,
-        };
-        
-        let now = Utc::now();
-        
+    async fn create(&self, job: domain::Job) -> anyhow::Result<domain::Job> {
+        let entity: JobEntity = job.clone().into();
+
         sqlx::query(
-            "INSERT INTO jobs (id, playlist_id, status, created_at) VALUES (?, ?, ?, ?)"
+            "INSERT INTO jobs (id, status, created_at, kind, payload) VALUES (?, ?, ?, ?, ?)"
         )
-        .bind(Uuid::from(job_id.clone()))
-        .bind(Uuid::from(playlist_id.clone()))
-        .bind("pending")
-        .bind(now)
+        .bind(entity.id)
+        .bind(entity.status)
+        .bind(entity.created_at)
+        .bind(entity.kind)
+        .bind(entity.payload)
         .execute(&self.pool)
         .await?;
         
-        Ok(Job {
-            id: job_id,
-            job_type: job_type.clone(),
-            status: JobStatus::Pending,
-            created_at: now,
-            completed_at: None,
-            front_pdf_path: None,
-            back_pdf_path: None,
-        })
+        Ok(job)
     }
 
-    async fn get(&self, job_id: &JobId) -> anyhow::Result<Option<Job>> {
+    async fn get(&self, id: &domain::JobId) -> anyhow::Result<Option<domain::Job>> {
+        let id: Uuid = id.clone().into();
         let job_entity = sqlx::query_as::<_, JobEntity>(
-            "SELECT id, playlist_id, status, front_pdf_path, back_pdf_path, created_at, completed_at FROM jobs WHERE id = ?"
+            "SELECT id, status, created_at, completed_at, kind, payload FROM jobs WHERE id = ?"
         )
-        .bind(Uuid::from(job_id.clone()))
+        .bind(id)
         .fetch_optional(&self.pool)
         .await?;
         
-        Ok(job_entity.map(Job::from))
+        Ok(job_entity.map(domain::Job::from))
+    }
+
+    async fn update(&self, job: domain::Job) -> anyhow::Result<domain::Job> {
+        todo!()
     }
 }

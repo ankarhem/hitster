@@ -1,9 +1,7 @@
 use std::str::FromStr;
-use chrono::{DateTime, Utc};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::domain::PlaylistId;
 
 #[derive(Debug, Display, Default, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct JobId(Uuid);
@@ -41,8 +39,7 @@ impl From<Uuid> for JobId {
     }
 }
 
-#[derive(Debug, Display, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
-#[sqlx(type_name = "text")]
+#[derive(Debug, Display, Clone, PartialEq)]
 pub enum JobStatus {
     /// pending
     Pending,
@@ -54,20 +51,26 @@ pub enum JobStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Job {
-    pub id: JobId,
-    pub job_type: JobType,
-    pub status: JobStatus,
-    pub created_at: DateTime<Utc>,
-    pub completed_at: Option<DateTime<Utc>>,
-    pub front_pdf_path: Option<String>,
-    pub back_pdf_path: Option<String>,
+#[derive(Debug, Clone)]
+pub enum JobKind {
+    GeneratePdfs,
+    RefetchPlaylist,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum JobType {
-    GeneratePlaylistPdf {
-        id: PlaylistId,
-    },
+#[derive(Debug, Clone)]
+pub struct Job {
+    pub id: JobId,
+    pub status: JobStatus,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub kind: JobKind,
+    pub payload: serde_json::Value,
+}
+
+pub trait BackgroundTask: Serialize + for<'de> Deserialize<'de> {
+    type State;
+    
+    fn kind(&self) -> String;
+
+    fn run(&self, state: &Self::State) -> impl Future<Output = anyhow::Result<()>> + Send;
 }

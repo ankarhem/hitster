@@ -1,7 +1,8 @@
+use std::sync::Arc;
 use anyhow::Result;
 use sqlx::sqlite::SqliteConnectOptions;
 use hitster::{SpotifyClient};
-use hitster::application::{JobsService, PlaylistService};
+use hitster::application::{PlaylistService};
 use hitster::infrastructure::JobsRepository;
 use hitster::infrastructure::playlist::PlaylistRepository;
 use hitster::web::server::run;
@@ -15,7 +16,7 @@ async fn main() -> Result<()> {
     let settings = hitster::Settings::new()?;
 
     // infrastructure
-    let spotify_client = SpotifyClient::new(&settings).await?;
+    let spotify_client = Arc::new(SpotifyClient::new(&settings).await?);
     
     // Database setup
     let sqlite_pool = sqlx::SqlitePool::connect_with(
@@ -25,17 +26,13 @@ async fn main() -> Result<()> {
     ).await?;
     sqlx::migrate!("./migrations").run(&sqlite_pool).await?;
     
-    let jobs_repository = JobsRepository::new(sqlite_pool.clone());
-    let playlist_repository = PlaylistRepository::new(sqlite_pool.clone()).await?;
-    
-    // Create a separate jobs repository for the playlist service
-    let playlist_jobs_repository = JobsRepository::new(sqlite_pool.clone());
-    
+    let jobs_repository = JobsRepository::new(sqlite_pool.clone()).into();
+    let playlist_repository = PlaylistRepository::new(sqlite_pool.clone()).await?.into();
+
     // application
-    let jobs_service = JobsService::new(jobs_repository);
-    let playlist_service = PlaylistService::new(playlist_repository, spotify_client, playlist_jobs_repository);
+    let playlist_service = PlaylistService::new(playlist_repository, spotify_client, jobs_repository).into();
     
-    run(3000, jobs_service, playlist_service).await?;
+    run(3000, playlist_service).await?;
     
     Ok(())
 }

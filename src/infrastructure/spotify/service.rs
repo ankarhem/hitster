@@ -57,6 +57,8 @@ impl ISpotifyClient for SpotifyClient {
             name: full_playlist.name,
             tracks,
             spotify_id: Some(id.clone()),
+            created_at: None,
+            updated_at: None,
         }))
     }
 }
