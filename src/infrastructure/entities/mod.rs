@@ -34,17 +34,24 @@ pub struct JobEntity {
 }
 
 #[derive(Debug, Clone, sqlx::Type)]
-#[sqlx(type_name = "job_status", rename_all = "lowercase")]
+#[sqlx(type_name = "text")]
 pub enum JobStatusEntity {
+    #[sqlx(rename = "pending")]
     Pending,
+    #[sqlx(rename = "processing")]
     Processing,
+    #[sqlx(rename = "completed")]
     Completed,
+    #[sqlx(rename = "failed")]
     Failed,
 }
 
 #[derive(Debug, Clone, sqlx::Type)]
+#[sqlx(type_name = "text")]
 pub enum JobKindEntity {
+    #[sqlx(rename = "generate_pdfs")]
     GeneratePdfs,
+    #[sqlx(rename = "refetch_playlist")]
     RefetchPlaylist,
 }
 
