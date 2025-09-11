@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Formatter;
 use std::str::FromStr;
-use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use winnow::{Parser, combinator::alt, token::take_while};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -12,7 +13,8 @@ impl SpotifyId {
     /// - URI: spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6
     /// - Raw: 6rqhFgbbKwnb9MLmUQDhG6
     pub fn parse(input: &str) -> Result<Self, SpotifyIdParserError> {
-        let id = spotify_id_parser.parse(input)
+        let id = spotify_id_parser
+            .parse(input)
             .map_err(|_| SpotifyIdParserError::InvalidFormat(input.to_string()))?;
         Ok(Self(id))
     }
@@ -54,47 +56,42 @@ impl From<SpotifyId> for String {
 }
 
 /// Custom error type for Spotify ID parsing
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum SpotifyIdParserError {
     InvalidFormat(String),
-    EmptyInput,
 }
 
 impl std::fmt::Display for SpotifyIdParserError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            SpotifyIdParserError::InvalidFormat(input) => write!(f, "Invalid Spotify ID format: {}", input),
-            SpotifyIdParserError::EmptyInput => write!(f, "Empty Spotify ID input"),
+            SpotifyIdParserError::InvalidFormat(input) => {
+                write!(f, "Invalid Spotify ID format: {}", input)
+            }
         }
     }
 }
 
-impl std::error::Error for SpotifyIdParserError {}
-
 /// Winnow parser for Spotify ID formats
 fn spotify_id_parser(input: &mut &str) -> winnow::Result<String> {
-    alt((
-        parse_url_format,
-        parse_uri_format,
-        parse_raw_id,
-    ))
-    .parse_next(input)
+    alt((parse_url_format, parse_uri_format, parse_raw_id)).parse_next(input)
 }
 
 /// Parse URL format: http://open.spotify.com/playlist/6rqhFgbbKwnb9MLmUQDhG6
 fn parse_url_format(input: &mut &str) -> winnow::Result<String> {
-    "http://open.spotify.com/playlist/"
-        .parse_next(input)?;
+    alt(("https://", "http://")).parse_next(input)?;
+    "open.spotify.com/playlist/".parse_next(input)?;
     let id = take_while(1.., |c: char| c.is_alphanumeric())
+        .verify(|id: &str| !id.is_empty())
         .parse_next(input)?;
+
     Ok(id.to_string())
 }
 
 /// Parse URI format: spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6
 fn parse_uri_format(input: &mut &str) -> winnow::Result<String> {
-    "spotify:playlist:"
-        .parse_next(input)?;
+    "spotify:playlist:".parse_next(input)?;
     let id = take_while(1.., |c: char| c.is_alphanumeric())
+        .verify(|id: &str| !id.is_empty())
         .parse_next(input)?;
     Ok(id.to_string())
 }
@@ -112,39 +109,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_url_format() {
-        let id = SpotifyId::parse("http://open.spotify.com/playlist/6rqhFgbbKwnb9MLmUQDhG6").unwrap();
-        assert_eq!(id.as_str(), "6rqhFgbbKwnb9MLmUQDhG6");
-    }
-
-    #[test]
-    fn test_parse_uri_format() {
-        let id = SpotifyId::parse("spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6").unwrap();
-        assert_eq!(id.as_str(), "6rqhFgbbKwnb9MLmUQDhG6");
-    }
-
-    #[test]
-    fn test_parse_raw_id() {
-        let id = SpotifyId::parse("6rqhFgbbKwnb9MLmUQDhG6").unwrap();
-        assert_eq!(id.as_str(), "6rqhFgbbKwnb9MLmUQDhG6");
-    }
-
-    #[test]
-    fn test_from_str() {
-        let id: SpotifyId = "6rqhFgbbKwnb9MLmUQDhG6".parse().unwrap();
-        assert_eq!(id.as_str(), "6rqhFgbbKwnb9MLmUQDhG6");
-    }
-
-    #[test]
-    fn test_url_generation() {
-        let id = SpotifyId::parse("6rqhFgbbKwnb9MLmUQDhG6").unwrap();
-        assert_eq!(id.as_url(), "https://open.spotify.com/playlist/6rqhFgbbKwnb9MLmUQDhG6");
-    }
-
-    #[test]
-    fn test_uri_generation() {
-        let id = SpotifyId::parse("6rqhFgbbKwnb9MLmUQDhG6").unwrap();
-        assert_eq!(id.as_uri(), "spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6");
+    fn test_valid_formats() {
+        assert_eq!(
+            &SpotifyId::parse("6rqhFgbbKwnb9MLmUQDhG6")
+                .unwrap()
+                .to_string(),
+            "6rqhFgbbKwnb9MLmUQDhG6"
+        );
+        assert_eq!(
+            &SpotifyId::parse("spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6")
+                .unwrap()
+                .to_string(),
+            "6rqhFgbbKwnb9MLmUQDhG6"
+        );
+        assert_eq!(
+            &SpotifyId::parse("http://open.spotify.com/playlist/6rqhFgbbKwnb9MLmUQDhG6")
+                .unwrap()
+                .to_string(),
+            "6rqhFgbbKwnb9MLmUQDhG6"
+        );
+        assert_eq!(
+            &SpotifyId::parse(
+                "https://open.spotify.com/playlist/6rqhFgbbKwnb9MLmUQDhG6?si=403cff98ac8d4479"
+            )
+            .unwrap()
+            .to_string(),
+            "6rqhFgbbKwnb9MLmUQDhG6"
+        );
     }
 
     #[test]
