@@ -3,8 +3,8 @@ use std::fmt::Formatter;
 use std::str::FromStr;
 use thiserror::Error;
 use winnow::{Parser, combinator::alt, token::take_while};
-use winnow::combinator::cut_err;
-use winnow::token::rest;
+use winnow::combinator::{preceded};
+use winnow::token::{rest};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpotifyId(String);
@@ -80,20 +80,27 @@ fn spotify_id_parser(input: &mut &str) -> winnow::Result<String> {
 
 /// Parse URL format: http://open.spotify.com/playlist/6rqhFgbbKwnb9MLmUQDhG6
 fn parse_url_format(input: &mut &str) -> winnow::Result<String> {
-    alt(("https://", "http://")).parse_next(input)?;
-    "open.spotify.com/playlist/".parse_next(input)?;
-
-    let id = parse_raw_id.parse_next(input)?;
-    _ = rest.parse_next(input)?;
-
-    Ok(id.to_string())
+    let base_url = preceded(
+        alt(("http://", "https://")),
+        "open.spotify.com/playlist/",
+    );
+    let id = preceded(
+        base_url,
+        parse_raw_id
+    ).parse_next(input)?;
+    
+    // Consume any trailing query parameters
+    let _ = rest.parse_next(input)?;
+    
+    Ok(id)
 }
 
 /// Parse URI format: spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6
 fn parse_uri_format(input: &mut &str) -> winnow::Result<String> {
-    "spotify:playlist:".parse_next(input)?;
-    let id = parse_raw_id.parse_next(input)?;
-    Ok(id.to_string())
+    preceded(
+        "spotify:playlist:",
+        parse_raw_id
+    ).parse_next(input)
 }
 
 /// Parse raw ID format: 6rqhFgbbKwnb9MLmUQDhG6
