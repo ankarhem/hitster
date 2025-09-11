@@ -1,18 +1,18 @@
 //! Configuration management for Hitster
-//! 
+//!
 //! This module handles loading configuration from environment variables
 //! and .env files for Spotify API credentials.
 
+use dotenv::dotenv;
 use serde::Deserialize;
 use thiserror::Error;
-use dotenv::dotenv;
 use tracing::info;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("Environment variable not found: {0}")]
     EnvVarNotFound(String),
-    
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -42,18 +42,22 @@ impl Settings {
             .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_ID".to_string()))?;
         let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET")
             .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_SECRET".to_string()))?;
-        let database_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| {
-                let current_dir = std::env::current_dir().unwrap();
-                current_dir.join("sqlite://./db/hitster.db").to_string_lossy().to_string()
-            });
-        
-        let database_path = database_url.split("sqlite://").nth(1)
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            let current_dir = std::env::current_dir().unwrap();
+            current_dir
+                .join("sqlite://./db/hitster.db")
+                .to_string_lossy()
+                .to_string()
+        });
+
+        let database_path = database_url
+            .split("sqlite://")
+            .nth(1)
             .ok_or_else(|| ConfigError::EnvVarNotFound("DATABASE_URL".to_string()))?
             .to_string();
-        
+
         info!("Database URL: {}", database_url);
-        
+
         Ok(Settings {
             client_id,
             client_secret,

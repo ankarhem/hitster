@@ -1,7 +1,7 @@
 use crate::web::templates::ErrorTemplate;
 use askama::Template;
+use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::http::{StatusCode, HeaderValue};
 
 /// Error type for handling errors in view rendering
 #[derive(Debug, displaydoc::Display, thiserror::Error)]
@@ -14,12 +14,11 @@ pub enum TemplateError {
 
 impl IntoResponse for TemplateError {
     fn into_response(self) -> Response {
-
         let status = match self {
             TemplateError::RenderError(err) => {
                 tracing::error!("Error: {}", err);
                 StatusCode::INTERNAL_SERVER_ERROR
-            },
+            }
             TemplateError::ApplicationError(err) => {
                 tracing::error!("Error: {}", err);
                 StatusCode::INTERNAL_SERVER_ERROR
@@ -40,7 +39,7 @@ impl IntoResponse for TemplateError {
                     HeaderValue::from_static("text/html; charset=utf-8"),
                 );
                 response
-            },
+            }
             Err(err) => {
                 let message = format!("Failed to render error template: {}", err);
                 tracing::error!(message);

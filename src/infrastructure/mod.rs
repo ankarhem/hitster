@@ -1,7 +1,7 @@
-pub mod spotify;
+mod entities;
 pub mod jobs;
 pub mod playlist;
-mod entities;
+pub mod spotify;
 
-pub use spotify::{SpotifyClient};
-pub use jobs::{JobsRepository};
+pub use jobs::JobsRepository;
+pub use spotify::SpotifyClient;

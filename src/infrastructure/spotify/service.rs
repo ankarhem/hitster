@@ -1,11 +1,11 @@
-use anyhow::Result;
-use futures_util::StreamExt;
-use rspotify::{ClientCredsSpotify, Credentials, prelude::BaseClient};
-use rspotify::model::PlayableItem;
 use crate::Settings;
-use tracing::{info, instrument};
 use crate::application::ISpotifyClient;
 use crate::domain::{Playlist, PlaylistId, SpotifyId};
+use anyhow::Result;
+use futures_util::StreamExt;
+use rspotify::model::PlayableItem;
+use rspotify::{ClientCredsSpotify, Credentials, prelude::BaseClient};
+use tracing::{info, instrument};
 
 #[derive(Clone)]
 pub struct SpotifyClient {
@@ -25,12 +25,14 @@ impl SpotifyClient {
 }
 
 impl ISpotifyClient for SpotifyClient {
-
     #[instrument(skip(self), fields(id = %id))]
     async fn get_playlist(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
-        let full_playlist = self.client.playlist(rspotify_playlist_id, None, None).await?;
+        let full_playlist = self
+            .client
+            .playlist(rspotify_playlist_id, None, None)
+            .await?;
         let mut tracks_stream = self.client.playlist_items(full_playlist.id, None, None);
 
         let mut tracks = Vec::new();
@@ -64,10 +66,10 @@ impl ISpotifyClient for SpotifyClient {
 }
 
 mod conversions {
-    use rspotify::model::FullTrack;
     use crate::domain::Track;
-    use anyhow::{bail, Result};
+    use anyhow::{Result, bail};
     use chrono::{Datelike, NaiveDate};
+    use rspotify::model::FullTrack;
 
     impl TryFrom<FullTrack> for Track {
         type Error = anyhow::Error;
@@ -76,7 +78,9 @@ mod conversions {
             let artist_names = value.artists.iter().map(|a| a.name.clone()).collect();
             let year = match value.album.release_date {
                 None => bail!("Missing release date for track: {}", value.name),
-                Some(ref date_string) if date_string.is_empty() => bail!("Empty release date for track: {}", value.name),
+                Some(ref date_string) if date_string.is_empty() => {
+                    bail!("Empty release date for track: {}", value.name)
+                }
                 Some(ref date_string) => {
                     let date = date_string.parse::<NaiveDate>()?;
                     date.year()
@@ -91,7 +95,7 @@ mod conversions {
                 title: value.name,
                 artist: artist_names,
                 year,
-                spotify_url
+                spotify_url,
             })
         }
     }

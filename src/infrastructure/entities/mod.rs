@@ -1,6 +1,6 @@
-use sqlx::{FromRow};
-use chrono::{DateTime, Utc};
 use crate::domain;
+use chrono::{DateTime, Utc};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(FromRow, Debug, Clone)]
@@ -75,7 +75,10 @@ impl From<TrackEntity> for domain::Track {
 impl From<(PlaylistEntity, Vec<TrackEntity>)> for domain::Playlist {
     fn from((playlist_entity, track_entities): (PlaylistEntity, Vec<TrackEntity>)) -> Self {
         let mut playlist: domain::Playlist = playlist_entity.into();
-        playlist.tracks = track_entities.into_iter().map(domain::Track::from).collect();
+        playlist.tracks = track_entities
+            .into_iter()
+            .map(domain::Track::from)
+            .collect();
         playlist
     }
 }

@@ -1,7 +1,7 @@
+use crate::application::{IJobsRepository, IPlaylistRepository, ISpotifyClient};
+use crate::domain::{Job, Pdf, Playlist, PlaylistId, SpotifyId};
 use std::sync::Arc;
-use crate::domain::{Playlist, PlaylistId, Pdf, SpotifyId, Job};
 use tracing::info;
-use crate::application::{IPlaylistRepository, ISpotifyClient, IJobsRepository};
 
 #[trait_variant::make(IPlaylistService: Send)]
 pub trait _IPlaylistService: Send + Sync {
@@ -24,16 +24,17 @@ where
     jobs_repository: Arc<JobsRepository>,
 }
 
-impl<SpotifyClient, PlaylistRepository, JobsRepository> PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
+impl<SpotifyClient, PlaylistRepository, JobsRepository>
+    PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
 where
-      PlaylistRepository: IPlaylistRepository,
-      SpotifyClient: ISpotifyClient,
-      JobsRepository: IJobsRepository,
+    PlaylistRepository: IPlaylistRepository,
+    SpotifyClient: ISpotifyClient,
+    JobsRepository: IJobsRepository,
 {
     pub fn new(
         playlist_repository: Arc<PlaylistRepository>,
         spotify_client: Arc<SpotifyClient>,
-        jobs_repository: Arc<JobsRepository>
+        jobs_repository: Arc<JobsRepository>,
     ) -> Self {
         Self {
             spotify_client,
@@ -43,7 +44,8 @@ where
     }
 }
 
-impl<SpotifyClient, PlaylistRepository, JobsRepository> IPlaylistService for PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
+impl<SpotifyClient, PlaylistRepository, JobsRepository> IPlaylistService
+    for PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
 where
     PlaylistRepository: IPlaylistRepository,
     SpotifyClient: ISpotifyClient,
@@ -51,7 +53,10 @@ where
 {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Playlist> {
         if let Some(existing) = self.playlist_repository.get_by_spotify_id(id).await? {
-            info!("Playlist with Spotify ID {} already exists with ID {}", id, existing.id);
+            info!(
+                "Playlist with Spotify ID {} already exists with ID {}",
+                id, existing.id
+            );
             return Ok(existing);
         }
 
@@ -63,7 +68,10 @@ where
         };
 
         let created = self.playlist_repository.create(&playlist).await?;
-        info!("Created new playlist with ID {} from Spotify ID {}", created.id, id);
+        info!(
+            "Created new playlist with ID {} from Spotify ID {}",
+            created.id, id
+        );
         Ok(created)
     }
 
@@ -82,7 +90,7 @@ where
         todo!()
     }
 
-    async fn get_playlist_pdfs(&self, _id: &PlaylistId) -> anyhow::Result<[Pdf;2]> {
+    async fn get_playlist_pdfs(&self, _id: &PlaylistId) -> anyhow::Result<[Pdf; 2]> {
         todo!()
     }
 
@@ -107,7 +115,10 @@ where
         let fresh_playlist = match self.spotify_client.get_playlist(&spotify_id).await? {
             Some(playlist) => playlist,
             None => {
-                anyhow::bail!("Playlist with Spotify ID {} not found in Spotify", spotify_id);
+                anyhow::bail!(
+                    "Playlist with Spotify ID {} not found in Spotify",
+                    spotify_id
+                );
             }
         };
 

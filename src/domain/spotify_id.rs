@@ -2,9 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Formatter;
 use std::str::FromStr;
 use thiserror::Error;
-use winnow::{Parser, combinator::alt, token::{take_while, take_till}};
-use winnow::stream::StreamIsPartial;
-use winnow::token::{any, rest};
+use winnow::{Parser, combinator::alt, token::take_while};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpotifyId(String);
@@ -82,12 +80,9 @@ fn spotify_id_parser(input: &mut &str) -> winnow::Result<String> {
 fn parse_url_format(input: &mut &str) -> winnow::Result<String> {
     alt(("https://", "http://")).parse_next(input)?;
     "open.spotify.com/playlist/".parse_next(input)?;
-    let mut id = take_while(1.., |c: char| c.is_alphanumeric())
-        .verify(|id: &str| !id.is_empty())
-        .parse_next(input)?;
-    
-    rest.parse_next(input)?;
-    
+
+    let id = parse_raw_id.parse_next(input)?;
+
     Ok(id.to_string())
 }
 

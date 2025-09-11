@@ -1,7 +1,7 @@
-use sqlx::{Pool, Sqlite, types::Uuid};
 use crate::application::IPlaylistRepository;
 use crate::domain::{Job, Playlist, PlaylistId, SpotifyId};
 use crate::infrastructure::entities::{JobEntity, PlaylistEntity, TrackEntity};
+use sqlx::{Pool, Sqlite, types::Uuid};
 
 #[derive(Clone)]
 pub struct PlaylistRepository {
@@ -10,20 +10,18 @@ pub struct PlaylistRepository {
 
 impl PlaylistRepository {
     pub async fn new(pool: Pool<Sqlite>) -> anyhow::Result<Self> {
-        Ok(Self {
-            pool,
-        })
+        Ok(Self { pool })
     }
 }
 
 impl IPlaylistRepository for PlaylistRepository {
     async fn create(&self, playlist: &Playlist) -> anyhow::Result<Playlist> {
         let mut tx = self.pool.begin().await?;
-        
+
         let playlist_id_uuid: Uuid = playlist.id.clone().into();
         let spotify_id_str = playlist.spotify_id.as_ref().map(|s| s.to_string());
         let playlist_name = &playlist.name;
-        
+
         sqlx::query!(
             "INSERT INTO playlists (id, spotify_id, name) VALUES (?, ?, ?)",
             playlist_id_uuid,
@@ -32,11 +30,11 @@ impl IPlaylistRepository for PlaylistRepository {
         )
         .execute(&mut *tx)
         .await?;
-        
+
         for (position, track) in playlist.tracks.iter().enumerate() {
             let track_id = Uuid::new_v4();
             let track_position = position as i32;
-            
+
             sqlx::query!(
                 "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 track_id,
@@ -50,19 +48,19 @@ impl IPlaylistRepository for PlaylistRepository {
             .execute(&mut *tx)
             .await?;
         }
-        
+
         tx.commit().await?;
         Ok(playlist.clone())
     }
 
     async fn get(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>> {
         let playlist_entity = sqlx::query_as::<_, PlaylistEntity>(
-            "SELECT id, spotify_id, name, created_at, updated_at FROM playlists WHERE id = ?"
+            "SELECT id, spotify_id, name, created_at, updated_at FROM playlists WHERE id = ?",
         )
         .bind(Uuid::from(id.clone()))
         .fetch_optional(&self.pool)
         .await?;
-        
+
         match playlist_entity {
             Some(playlist) => {
                 let tracks = sqlx::query_as::<_, TrackEntity>(
@@ -71,7 +69,7 @@ impl IPlaylistRepository for PlaylistRepository {
                 .bind(Uuid::from(id.clone()))
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 Ok(Some(Playlist::from((playlist, tracks))))
             }
             None => Ok(None),
@@ -85,7 +83,7 @@ impl IPlaylistRepository for PlaylistRepository {
         .bind(spotify_id.to_string())
         .fetch_optional(&self.pool)
         .await?;
-        
+
         match playlist_entity {
             Some(playlist) => {
                 let tracks = sqlx::query_as::<_, TrackEntity>(
@@ -94,7 +92,7 @@ impl IPlaylistRepository for PlaylistRepository {
                 .bind(playlist.id)
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 Ok(Some(Playlist::from((playlist, tracks))))
             }
             None => Ok(None),
@@ -108,16 +106,16 @@ impl IPlaylistRepository for PlaylistRepository {
             FROM jobs 
             WHERE playlist_id = ?
             ORDER BY created_at DESC
-            "#
+            "#,
         )
         .bind(Uuid::from(playlist_id.clone()))
         .fetch_all(&self.pool)
         .await?;
-        
+
         if job_entities.is_empty() {
             return Ok(None);
         }
-        
+
         let jobs = job_entities.into_iter().map(Job::from).collect();
         Ok(Some(jobs))
     }

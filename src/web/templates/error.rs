@@ -18,7 +18,7 @@ mod tests {
             error_message: "Test error".to_string(),
             status_code: 404,
         };
-        
+
         assert_eq!(template.error_message, "Test error");
         assert_eq!(template.status_code, 404);
     }

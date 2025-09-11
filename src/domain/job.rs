@@ -1,9 +1,11 @@
-use std::str::FromStr;
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use uuid::Uuid;
 
-#[derive(Debug, Display, Default, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Display, Default, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct JobId(Uuid);
 
 impl JobId {
@@ -69,7 +71,7 @@ pub struct Job {
 
 pub trait BackgroundTask: Serialize + for<'de> Deserialize<'de> {
     type State;
-    
+
     fn kind(&self) -> String;
 
     fn run(&self, state: &Self::State) -> impl Future<Output = anyhow::Result<()>> + Send;

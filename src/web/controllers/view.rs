@@ -1,13 +1,13 @@
 use crate::application::playlist_service::IPlaylistService;
+use crate::web::error::TemplateError;
 use crate::web::server::Services;
+use crate::web::templates::playlist::TrackVM;
 use crate::web::templates::{IndexTemplate, PlaylistTemplate};
 use askama::Template;
 use axum::{
     extract::{Path, State},
     response::Html,
 };
-use crate::web::error::TemplateError;
-use crate::web::templates::playlist::TrackVM;
 
 pub async fn index() -> Result<Html<String>, TemplateError> {
     let template = IndexTemplate {
@@ -36,11 +36,15 @@ where
         .take(20)
         .map(|track| {
             let code = qrcode::QrCode::new(&track.spotify_url).unwrap();
-            let svg = code.render::<qrcode::render::svg::Color>()
+            let svg = code
+                .render::<qrcode::render::svg::Color>()
                 .min_dimensions(0, 200)
                 .max_dimensions(200, 200)
                 .build();
-            let svg = svg.replace(r#"crispEdges""#, r#"crispEdges" style="height: 100%; width: 100%""#);
+            let svg = svg.replace(
+                r#"crispEdges""#,
+                r#"crispEdges" style="height: 100%; width: 100%""#,
+            );
 
             TrackVM {
                 title: track.title.clone(),
@@ -59,6 +63,6 @@ where
         playlist_id: playlist_id.to_string(),
         has_completed_job: false,
     };
-    
+
     Ok(Html(template.render()?))
 }

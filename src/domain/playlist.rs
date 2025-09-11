@@ -1,9 +1,9 @@
-use std::fmt::Formatter;
-use std::str::FromStr;
+use super::SpotifyId;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt::Formatter;
+use std::str::FromStr;
 use uuid::Uuid;
-use super::SpotifyId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaylistId(Uuid);
@@ -51,12 +51,11 @@ pub struct Playlist {
     pub tracks: Vec<Track>,
 }
 
-
 impl Playlist {
     pub fn track_count(&self) -> usize {
         self.tracks.len()
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.tracks.is_empty()
     }

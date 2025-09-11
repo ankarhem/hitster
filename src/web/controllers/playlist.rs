@@ -1,14 +1,14 @@
-use axum::{
-    extract::{Path, State},
-    response::{Redirect, Json},
-    Form,
-};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use crate::application::playlist_service::IPlaylistService;
 use crate::web::error::ApiError;
 use crate::web::server::Services;
+use axum::{
+    Form,
+    extract::{Path, State},
+    response::{Json, Redirect},
+};
 use base64::prelude::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub struct PlaylistController {}
 
@@ -31,7 +31,10 @@ where
 {
     let spotify_id = form.id.parse()?;
 
-    let playlist = server.playlist_service.create_from_spotify(&spotify_id).await?;
+    let playlist = server
+        .playlist_service
+        .create_from_spotify(&spotify_id)
+        .await?;
 
     Ok(Redirect::to(&format!("/playlist/{}", playlist.id)))
 }
@@ -44,7 +47,10 @@ where
     PlaylistService: IPlaylistService,
 {
     let playlist_id = playlist_id.parse()?;
-    services.playlist_service.refetch_playlist(&playlist_id).await?;
+    services
+        .playlist_service
+        .refetch_playlist(&playlist_id)
+        .await?;
     Ok(Json(()))
 }
 
@@ -56,13 +62,15 @@ where
     PlaylistService: IPlaylistService,
 {
     let playlist_id = playlist_id.parse()?;
-    let job = services.playlist_service.generate_playlist_pdfs(&playlist_id).await?;
+    let job = services
+        .playlist_service
+        .generate_playlist_pdfs(&playlist_id)
+        .await?;
 
     Ok(Json(JobResponse {
         job_id: job.id.into(),
     }))
 }
-
 
 #[derive(Serialize)]
 pub struct PdfResponse {
@@ -79,10 +87,19 @@ where
 {
     let playlist_id = playlist_id.parse()?;
 
-    let pdfs = server.playlist_service.get_playlist_pdfs(&playlist_id).await?;
-    
+    let pdfs = server
+        .playlist_service
+        .get_playlist_pdfs(&playlist_id)
+        .await?;
+
     Ok(Json(PdfResponse {
-        front: format!("data:application/pdf;base64,{}", BASE64_STANDARD.encode(&pdfs[0])),
-        back: format!("data:application/pdf;base64,{}", BASE64_STANDARD.encode(&pdfs[1])),
+        front: format!(
+            "data:application/pdf;base64,{}",
+            BASE64_STANDARD.encode(&pdfs[0])
+        ),
+        back: format!(
+            "data:application/pdf;base64,{}",
+            BASE64_STANDARD.encode(&pdfs[1])
+        ),
     }))
 }

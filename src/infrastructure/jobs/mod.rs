@@ -1,8 +1,8 @@
-use sqlx::{Pool, Sqlite};
-use uuid::Uuid;
 use crate::application::IJobsRepository;
 use crate::domain;
-use crate::infrastructure::entities::{JobEntity};
+use crate::infrastructure::entities::JobEntity;
+use sqlx::{Pool, Sqlite};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct JobsRepository {
@@ -11,9 +11,7 @@ pub struct JobsRepository {
 
 impl JobsRepository {
     pub fn new(pool: Pool<Sqlite>) -> Self {
-        Self {
-            pool,
-        }
+        Self { pool }
     }
 }
 
@@ -22,7 +20,7 @@ impl IJobsRepository for JobsRepository {
         let entity: JobEntity = job.clone().into();
 
         sqlx::query(
-            "INSERT INTO jobs (id, status, created_at, kind, payload) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO jobs (id, status, created_at, kind, payload) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(entity.id)
         .bind(entity.status)
@@ -31,19 +29,19 @@ impl IJobsRepository for JobsRepository {
         .bind(entity.payload)
         .execute(&self.pool)
         .await?;
-        
+
         Ok(job)
     }
 
     async fn get(&self, id: &domain::JobId) -> anyhow::Result<Option<domain::Job>> {
         let id: Uuid = id.clone().into();
         let job_entity = sqlx::query_as::<_, JobEntity>(
-            "SELECT id, status, created_at, completed_at, kind, payload FROM jobs WHERE id = ?"
+            "SELECT id, status, created_at, completed_at, kind, payload FROM jobs WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(job_entity.map(domain::Job::from))
     }
 
