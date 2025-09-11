@@ -10,11 +10,14 @@ use base64::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+const MAX_PLAYLIST_ID_LENGTH: usize = 200;
+
 pub struct PlaylistController {}
 
 #[derive(Deserialize)]
 pub struct CreatePlaylistForm {
-    id: String,
+    #[serde(rename = "id")]
+    playlist_id: String,
 }
 
 #[derive(Serialize)]
@@ -29,14 +32,27 @@ pub async fn create_playlist<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let spotify_id = form.id.parse()?;
+    // Input validation
+    if form.playlist_id.len() > MAX_PLAYLIST_ID_LENGTH {
+        return Err(ApiError::ValidationError("Playlist ID too long".to_string()));
+    }
+    
+    if form.playlist_id.trim().is_empty() {
+        return Err(ApiError::ValidationError("Playlist ID cannot be empty".to_string()));
+    }
+
+    let spotify_id = form.playlist_id.parse()?;
 
     let playlist = server
         .playlist_service
         .create_from_spotify(&spotify_id)
         .await?;
-
-    Ok(Redirect::to(&format!("/playlist/{}", playlist.id)))
+    
+    if let Some(playlist) = playlist {
+        Ok(Redirect::to(&format!("/playlist/{}", playlist.id)))
+    } else {
+        Err(ApiError::NotFound)
+    }
 }
 
 pub async fn refetch_playlist<PlaylistService>(

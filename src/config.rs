@@ -25,6 +25,10 @@ pub struct Settings {
     pub client_secret: String,
     /// Database URL
     pub database_path: String,
+    /// Server binding host
+    pub host: String,
+    /// Server binding port
+    pub port: u16,
 }
 
 impl Settings {
@@ -42,13 +46,17 @@ impl Settings {
             .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_ID".to_string()))?;
         let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET")
             .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_SECRET".to_string()))?;
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            let current_dir = std::env::current_dir().unwrap();
-            current_dir
-                .join("sqlite://./db/hitster.db")
-                .to_string_lossy()
-                .to_string()
-        });
+        let database_url = match std::env::var("DATABASE_URL") {
+            Ok(url) => url,
+            Err(_) => {
+                let current_dir = std::env::current_dir()
+                    .map_err(|e| ConfigError::Io(e))?;
+                current_dir
+                    .join("sqlite://./db/hitster.db")
+                    .to_string_lossy()
+                    .to_string()
+            }
+        };
 
         let database_path = database_url
             .split("sqlite://")
@@ -56,12 +64,20 @@ impl Settings {
             .ok_or_else(|| ConfigError::EnvVarNotFound("DATABASE_URL".to_string()))?
             .to_string();
 
-        info!("Database URL: {}", database_url);
+        let host = std::env::var("HITSTER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+        let port = std::env::var("HITSTER_PORT")
+            .map(|s| s.parse().unwrap_or(3000))
+            .unwrap_or(3000);
+
+        info!("Database path: {}", database_path);
+        info!("Server will bind to {}:{}", host, port);
 
         Ok(Settings {
             client_id,
             client_secret,
             database_path,
+            host,
+            port,
         })
     }
 }

@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
     let playlist_service =
         PlaylistService::new(playlist_repository, spotify_client, jobs_repository).into();
 
-    run(3000, playlist_service).await?;
+    run(&settings.host, settings.port, playlist_service).await?;
 
     Ok(())
 }

@@ -25,7 +25,7 @@ where
 {
     let playlist_id = playlist_id.parse()?;
     let playlist = match server.playlist_service.get_playlist(&playlist_id).await? {
-        None => todo!("Handle playlist not found"),
+        None => Err(TemplateError::NotFound(format!("Playlist with id {} not found", playlist_id)))?,
         Some(p) => p,
     };
 
@@ -34,8 +34,8 @@ where
         .tracks
         .iter()
         .take(20)
-        .map(|track| {
-            let code = qrcode::QrCode::new(&track.spotify_url).unwrap();
+        .map(|track| -> Result<TrackVM, TemplateError> {
+            let code = qrcode::QrCode::new(&track.spotify_url)?;
             let svg = code
                 .render::<qrcode::render::svg::Color>()
                 .min_dimensions(0, 200)
@@ -46,14 +46,14 @@ where
                 r#"crispEdges" style="height: 100%; width: 100%""#,
             );
 
-            TrackVM {
+            Ok(TrackVM {
                 title: track.title.clone(),
                 artist: track.artist.clone(),
                 year: track.year,
                 qr_code: svg,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let template = PlaylistTemplate {
         title: playlist.name.clone(),

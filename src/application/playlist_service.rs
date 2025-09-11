@@ -5,7 +5,7 @@ use tracing::info;
 
 #[trait_variant::make(IPlaylistService: Send)]
 pub trait _IPlaylistService: Send + Sync {
-    async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Playlist>;
+    async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>>;
     async fn get_playlist(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>>;
     async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job>;
     async fn get_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<[Pdf; 2]>;
@@ -52,19 +52,20 @@ where
     SpotifyClient: ISpotifyClient,
     JobsRepository: IJobsRepository,
 {
-    async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Playlist> {
+    async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>> {
         if let Some(existing) = self.playlist_repository.get_by_spotify_id(id).await? {
             info!(
                 "Playlist with Spotify ID {} already exists with ID {}",
                 id, existing.id
             );
-            return Ok(existing);
+            return Ok(Some(existing));
         }
 
         let playlist = match self.spotify_client.get_playlist(id).await? {
             Some(p) => p,
             None => {
-                anyhow::bail!("Playlist with Spotify ID {} not found in Spotify", id);
+                info!("Playlist with Spotify ID {} not found", id);
+                return Ok(None);
             }
         };
 
@@ -73,7 +74,7 @@ where
             "Created new playlist with ID {} from Spotify ID {}",
             created.id, id
         );
-        Ok(created)
+        Ok(Some(created))
     }
 
     async fn get_playlist(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>> {

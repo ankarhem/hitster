@@ -3,9 +3,10 @@ use crate::web::controllers;
 use axum::{
     Router,
     routing::{get, post},
+    http::HeaderValue,
 };
-use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::cors::{CorsLayer, Any};
 use tracing::info;
 
 #[derive(Debug, Default)]
@@ -28,6 +29,7 @@ where
 }
 
 pub async fn run<PlaylistService>(
+    host: &str,
     port: u16,
     playlist_service: Arc<PlaylistService>,
 ) -> anyhow::Result<()>
@@ -62,10 +64,10 @@ where
         )
         .with_state(services);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = format!("{}:{}", host, port);
     info!("Listening on {}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app.into_make_service()).await?;
 
     Ok(())
