@@ -3,6 +3,8 @@ use std::fmt::Formatter;
 use std::str::FromStr;
 use thiserror::Error;
 use winnow::{Parser, combinator::alt, token::take_while};
+use winnow::combinator::cut_err;
+use winnow::token::rest;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpotifyId(String);
@@ -82,6 +84,7 @@ fn parse_url_format(input: &mut &str) -> winnow::Result<String> {
     "open.spotify.com/playlist/".parse_next(input)?;
 
     let id = parse_raw_id.parse_next(input)?;
+    _ = rest.parse_next(input)?;
 
     Ok(id.to_string())
 }
@@ -89,7 +92,7 @@ fn parse_url_format(input: &mut &str) -> winnow::Result<String> {
 /// Parse URI format: spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6
 fn parse_uri_format(input: &mut &str) -> winnow::Result<String> {
     "spotify:playlist:".parse_next(input)?;
-    let id = parse_raw_id(input)?;
+    let id = parse_raw_id.parse_next(input)?;
     Ok(id.to_string())
 }
 
