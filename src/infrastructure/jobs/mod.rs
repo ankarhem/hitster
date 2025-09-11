@@ -45,7 +45,7 @@ impl IJobsRepository for JobsRepository {
         Ok(job_entity.map(domain::Job::from))
     }
 
-    async fn update(&self, job: domain::Job) -> anyhow::Result<domain::Job> {
+    async fn update(&self, _job: domain::Job) -> anyhow::Result<domain::Job> {
         todo!()
     }
 }

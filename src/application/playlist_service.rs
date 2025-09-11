@@ -21,6 +21,7 @@ where
 {
     spotify_client: Arc<SpotifyClient>,
     playlist_repository: Arc<PlaylistRepository>,
+    #[allow(dead_code)]
     jobs_repository: Arc<JobsRepository>,
 }
 
@@ -80,7 +81,7 @@ where
     }
 
     async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job> {
-        let playlist = match self.playlist_repository.get(id).await? {
+        let _playlist = match self.playlist_repository.get(id).await? {
             Some(playlist) => playlist,
             None => {
                 anyhow::bail!("Playlist with ID {} not found", id);
@@ -112,7 +113,7 @@ where
         };
 
         // Fetch fresh data from Spotify
-        let fresh_playlist = match self.spotify_client.get_playlist(&spotify_id).await? {
+        let _fresh_playlist = match self.spotify_client.get_playlist(&spotify_id).await? {
             Some(playlist) => playlist,
             None => {
                 anyhow::bail!(
