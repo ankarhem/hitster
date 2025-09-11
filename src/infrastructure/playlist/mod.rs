@@ -119,4 +119,54 @@ impl IPlaylistRepository for PlaylistRepository {
         let jobs = job_entities.into_iter().map(Job::from).collect();
         Ok(Some(jobs))
     }
+
+    async fn update(&self, playlist: &Playlist) -> anyhow::Result<Playlist> {
+        let mut tx = self.pool.begin().await?;
+
+        let playlist_id_uuid: Uuid = playlist.id.clone().into();
+        let spotify_id_str = playlist.spotify_id.as_ref().map(|s| s.to_string());
+        let playlist_name = &playlist.name;
+        let updated_at = playlist.updated_at;
+
+        // Update playlist
+        sqlx::query!(
+            "UPDATE playlists SET spotify_id = ?, name = ?, updated_at = ? WHERE id = ?",
+            spotify_id_str,
+            playlist_name,
+            updated_at,
+            playlist_id_uuid
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Delete existing tracks (we'll reinsert them)
+        sqlx::query!(
+            "DELETE FROM tracks WHERE playlist_id = ?",
+            playlist_id_uuid
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Insert updated tracks
+        for (position, track) in playlist.tracks.iter().enumerate() {
+            let track_id = Uuid::new_v4();
+            let track_position = position as i32;
+
+            sqlx::query!(
+                "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                track_id,
+                playlist_id_uuid,
+                track.title,
+                track.artist,
+                track.year,
+                track.spotify_url,
+                track_position
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(playlist.clone())
+    }
 }

@@ -53,7 +53,7 @@ pub enum JobStatus {
     Failed,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum JobKind {
     GeneratePdfs,
     RefetchPlaylist,
@@ -67,6 +67,19 @@ pub struct Job {
     pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub kind: JobKind,
     pub payload: serde_json::Value,
+}
+
+impl Job {
+    pub fn new(kind: JobKind, payload: serde_json::Value) -> Self {
+        Self {
+            id: JobId::new(),
+            status: JobStatus::Pending,
+            created_at: chrono::Utc::now(),
+            completed_at: None,
+            kind,
+            payload,
+        }
+    }
 }
 
 pub trait BackgroundTask: Serialize + for<'de> Deserialize<'de> {

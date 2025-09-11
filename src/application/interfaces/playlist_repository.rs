@@ -6,4 +6,5 @@ pub trait _IPlaylistRepository: Send + Sync {
     async fn get(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>>;
     async fn get_by_spotify_id(&self, spotify_id: &SpotifyId) -> anyhow::Result<Option<Playlist>>;
     async fn get_jobs(&self, playlist_id: &PlaylistId) -> anyhow::Result<Option<Vec<Job>>>;
+    async fn update(&self, playlist: &Playlist) -> anyhow::Result<Playlist>;
 }

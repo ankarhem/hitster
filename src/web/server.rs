@@ -3,10 +3,8 @@ use crate::web::controllers;
 use axum::{
     Router,
     routing::{get, post},
-    http::HeaderValue,
 };
 use std::sync::Arc;
-use tower_http::cors::{CorsLayer, Any};
 use tracing::info;
 
 #[derive(Debug, Default)]
