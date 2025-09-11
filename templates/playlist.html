@@ -161,19 +161,12 @@
         generateBtn.innerHTML = '<span class="loading-spinner"></span> Generating...';
         statusSection.classList.remove('hidden');
 
-        // Start fade out animation
-        const fullCards = document.getElementById('full-cards');
-        fullCards.classList.add('fade-out');
-
         // Call API to start generation
-        fetch(`/api/generate/${jobId}`, {
+        fetch(`/api/playlist/${playlistId}/generate-pdfs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                playlist_id: playlistId,
-            }),
         })
             .then(response => response.json())
             .then(data => {
