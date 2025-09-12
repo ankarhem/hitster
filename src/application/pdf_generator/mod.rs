@@ -2,6 +2,50 @@ use crate::domain::Playlist;
 use anyhow::Result;
 use oxidize_pdf::{Color, Document, Font, Page};
 
+// Helper function to wrap text to fit within a specified width
+fn wrap_text(text: &str, max_chars_per_line: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    
+    // First split by commas for multiple artists
+    let comma_parts: Vec<&str> = text.split(',').map(|s| s.trim()).collect();
+    
+    for part in comma_parts {
+        if part.is_empty() {
+            continue;
+        }
+        
+        // If this part is short enough, add it as a single line
+        if part.len() <= max_chars_per_line {
+            lines.push(part.to_string());
+        } else {
+            // Split long parts by spaces for word wrapping
+            let words: Vec<&str> = part.split_whitespace().collect();
+            let mut current_line = String::new();
+            
+            for word in words {
+                // If adding this word would exceed the line length
+                if current_line.len() + word.len() + 1 > max_chars_per_line && !current_line.is_empty() {
+                    lines.push(current_line.trim().to_string());
+                    current_line = String::new();
+                }
+                
+                if current_line.is_empty() {
+                    current_line = word.to_string();
+                } else {
+                    current_line.push(' ');
+                    current_line.push_str(word);
+                }
+            }
+            
+            if !current_line.is_empty() {
+                lines.push(current_line.trim().to_string());
+            }
+        }
+    }
+    
+    lines
+}
+
 #[trait_variant::make(IPdfGenerator: Send)]
 pub trait _IPdfGenerator: Send + Sync {
     async fn generate_front_cards(&self, playlist: &Playlist) -> anyhow::Result<Vec<u8>>;
@@ -55,31 +99,46 @@ impl IPdfGenerator for PdfGenerator {
                 // Gap between artist and title
                 let gap = 4.0;
 
-                // Handle artist name - split by commas for multiple artists
-                let artists: Vec<&str> = track.artist.split(',').map(|s| s.trim()).collect();
+                // Handle artist name with smart wrapping
+                let max_artist_chars = 20; // Approximate character limit for artist lines
+                let artist_lines = wrap_text(&track.artist, max_artist_chars);
                 let mut current_line = 0;
                 
-                for (idx, artist) in artists.iter().enumerate() {
-                    let artist_string = match idx == artists.len() - 1 {
-                        true => artist.to_string(),
-                        false => format!("{},", artist),
+                for (idx, artist_line) in artist_lines.iter().enumerate() {
+                    let artist_string = if idx == artist_lines.len() - 1 {
+                        artist_line.clone()
+                    } else {
+                        // Add comma for all but the last line when we split by commas
+                        if track.artist.contains(',') && idx < artist_lines.len() - 1 {
+                            format!("{},", artist_line)
+                        } else {
+                            artist_line.clone()
+                        }
                     };
-                    if !artist.is_empty() {
-                        let _ = page.text()
-                            .set_font(Font::Helvetica, 16.0)
-                            .at(pos_x + padding,
-                                pos_y + card_height - line_height - padding - (current_line as f64 * line_height))
-                            .write(&artist_string);
-                        current_line += 1;
-                    }
+                    
+                    let _ = page.text()
+                        .set_font(Font::Helvetica, 16.0)
+                        .at(pos_x + padding,
+                            pos_y + card_height - line_height - padding - (current_line as f64 * line_height))
+                        .write(&artist_string);
+                    current_line += 1;
                 }
                 
-                // Title - place it after all artist lines
-                let _ = page.text()
-                    .set_font(Font::Helvetica, 12.0)
-                    .at(pos_x + padding,
-                        pos_y + card_height - line_height - padding - gap - (current_line as f64 * line_height))
-                    .write(&track.title);
+                // Add gap between artist and title
+                current_line += 1;
+                
+                // Handle title with smart wrapping
+                let max_title_chars = 30; // Approximate character limit for title lines
+                let title_lines = wrap_text(&track.title, max_title_chars);
+                
+                for title_line in title_lines.iter() {
+                    let _ = page.text()
+                        .set_font(Font::Helvetica, 12.0)
+                        .at(pos_x + padding,
+                            pos_y + card_height - padding - gap - (current_line as f64 * line_height))
+                        .write(title_line);
+                    current_line += 1;
+                }
                 
                 // Year at bottom
                 let _ = page.text()
