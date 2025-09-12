@@ -75,7 +75,11 @@ mod conversions {
         type Error = anyhow::Error;
 
         fn try_from(value: FullTrack) -> Result<Self> {
-            let artist_names = value.artists.iter().map(|a| a.name.clone()).collect();
+            let artist_names = value.artists
+                .iter()
+                .map(|artist| artist.name.clone())
+                .collect::<Vec<String>>()
+                .join(", ");
             let year = match value.album.release_date {
                 None => bail!("Missing release date for track: {}", value.name),
                 Some(ref date_string) if date_string.is_empty() => {

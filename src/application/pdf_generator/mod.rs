@@ -1,6 +1,6 @@
 use crate::domain::Playlist;
 use anyhow::Result;
-use oxidize_pdf::{Color, Document, Page};
+use oxidize_pdf::{Color, Document, Font, Page};
 
 #[trait_variant::make(IPdfGenerator: Send)]
 pub trait _IPdfGenerator: Send + Sync {
@@ -29,26 +29,48 @@ impl IPdfGenerator for PdfGenerator {
             let page_width = page.width();
             let page_height = page.height();
             
-            // 4 columns, 6 rows
-            let cols = 4;
-            let rows = 6;
+            // 3 columns, 4 rows
+            let cols = 3;
+            let rows = 4;
 
             let card_width = page_width / cols as f64;
             let card_height = page_height / rows as f64;
             
-            for (index, _track) in tracks_on_page.iter().enumerate() {
-                dbg!(index);
-                
+            for (index, track) in tracks_on_page.iter().enumerate() {
                 let row = index / cols + 1;
                 let col = index % cols;
 
                 let pos_x = col as f64 * card_width;
                 let pos_y = page.height() - row as f64 * card_height;
 
+                // Draw rectangle border
                 page.graphics()
                     .set_stroke_color(Color::black())
                     .rectangle(pos_x, pos_y, card_width, card_height)
                     .stroke();
+
+                // Add text content
+                let text_margin = 8.0;
+                let line_height = 16.0;
+                let padding = 10.0;
+                
+                // Artist at top (first line)
+                let _ = page.text()
+                    .set_font(Font::Helvetica, 16.0)
+                    .at(pos_x + text_margin + padding, pos_y + card_height - text_margin - line_height - padding)
+                    .write(&track.artist);
+                
+                // Title at top (second line)
+                let _ = page.text()
+                    .set_font(Font::Helvetica, 12.0)
+                    .at(pos_x + text_margin + padding, pos_y + card_height - text_margin - (line_height * 2.0) - padding)
+                    .write(&track.title);
+                
+                // Year at bottom
+                let _ = page.text()
+                    .set_font(Font::Helvetica, 32.0)
+                    .at(pos_x + text_margin + padding, pos_y + text_margin + line_height + padding)
+                    .write(&track.year.to_string());
             }
 
             doc.add_page(page);
