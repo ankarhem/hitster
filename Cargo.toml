@@ -33,7 +33,7 @@ dotenv = "0.15"
 qrcode = "0.14"
 
 # PDF generation
-printpdf = "0.7"
+printpdf = { version = "0.8", features = ["html"] }
 
 # HTML utilities
 html-escape = "0.2"
