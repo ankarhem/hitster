@@ -1,5 +1,6 @@
 use crate::domain::Playlist;
 use anyhow::Result;
+use printpdf::{Mm, PdfDocument, BuiltinFont};
 use std::path::PathBuf;
 use tokio::fs;
 use tracing::{info, instrument};
@@ -38,166 +39,82 @@ impl PdfGenerator {
     }
 
     async fn generate_front_pdf(playlist: &Playlist) -> Result<Vec<u8>> {
-        // Simple HTML-based PDF generation for now
-        // In a real implementation, you'd use a proper PDF library like printpdf
-        let _html = Self::generate_front_html(playlist);
+        let (doc, page1, layer1) = PdfDocument::new("Hitster Cards", Mm(210.0), Mm(297.0), "Layer 1");
+        let current_layer = doc.get_page(page1).get_layer(layer1);
 
-        // For now, return a simple PDF placeholder
-        // This would be replaced with actual PDF generation
-        Ok(format!("PDF content for {} tracks", playlist.tracks.len()).into_bytes())
+        let font = doc.add_builtin_font(BuiltinFont::Helvetica)?;
+
+        // Simple PDF with playlist info for now
+        current_layer.use_text(
+            &format!("Playlist: {}", playlist.name),
+            16.0,
+            Mm(20.0),
+            Mm(277.0),
+            &font,
+        );
+
+        current_layer.use_text(
+            &format!("Total tracks: {}", playlist.tracks.len()),
+            12.0,
+            Mm(20.0),
+            Mm(267.0),
+            &font,
+        );
+
+        for (i, track) in playlist.tracks.iter().take(10).enumerate() {
+            let y = 247.0 - (i as f32 * 10.0);
+            current_layer.use_text(
+                &format!("{}. {} - {} ({})", i + 1, track.title, track.artist, track.year),
+                10.0,
+                Mm(20.0),
+                Mm(y),
+                &font,
+            );
+        }
+
+        if playlist.tracks.len() > 10 {
+            current_layer.use_text(
+                &format!("... and {} more tracks", playlist.tracks.len() - 10),
+                10.0,
+                Mm(20.0),
+                Mm(137.0),
+                &font,
+            );
+        }
+
+        let bytes = Vec::new();
+        use std::io::BufWriter;
+        let mut buf_writer = BufWriter::new(bytes);
+        doc.save(&mut buf_writer)?;
+        Ok(buf_writer.into_inner().unwrap_or_default())
     }
 
     async fn generate_back_pdf(track_count: usize) -> Result<Vec<u8>> {
-        // Generate back PDF with uniform card backs
-        let _html = Self::generate_back_html(track_count);
+        let (doc, page1, layer1) = PdfDocument::new("Hitster Card Backs", Mm(210.0), Mm(297.0), "Layer 1");
+        let current_layer = doc.get_page(page1).get_layer(layer1);
+        let font = doc.add_builtin_font(BuiltinFont::HelveticaBold)?;
 
-        // For now, return a simple PDF placeholder
-        // This would be replaced with actual PDF generation
-        Ok(format!("PDF back content for {} tracks", track_count).into_bytes())
-    }
-
-    fn generate_front_html(playlist: &Playlist) -> String {
-        let mut html = String::new();
-
-        html.push_str(&format!(
-            r#"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{} - Front Cards</title>
-    <style>
-        @page {{ size: A4; margin: 0; }}
-        body {{ margin: 0; padding: 20px; font-family: Arial, sans-serif; }}
-        .card-grid {{ 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            grid-template-rows: repeat(4, 1fr);
-            gap: 10px;
-            height: 257mm;
-            width: 177mm;
-        }}
-        .card {{ 
-            border: 1px solid #ccc; 
-            padding: 8px;
-            font-size: 10px;
-            display: flex;
-            flex-direction: column;
-            page-break-inside: avoid;
-        }}
-        .card-title {{ font-weight: bold; margin-bottom: 4px; }}
-        .card-artist {{ color: #666; margin-bottom: 2px; }}
-        .card-year {{ color: #999; font-size: 9px; }}
-        .card-qr {{ margin-top: auto; text-align: center; }}
-        .qr-placeholder {{ 
-            width: 30px; 
-            height: 30px; 
-            background: #f0f0f0; 
-            border: 1px solid #ddd;
-            display: inline-block;
-        }}
-    </style>
-</head>
-<body>
-"#,
-            playlist.name
-        ));
-
-        // Generate cards in chunks of 12 per page
-        for (page, chunk) in playlist.tracks.chunks(12).enumerate() {
-            if page > 0 {
-                html.push_str(r#"<div style="page-break-before: always;"></div>"#);
-            }
-
-            html.push_str(r#"<div class="card-grid">"#);
-
-            for track in chunk {
-                html.push_str(&format!(
-                    r#"
-<div class="card">
-    <div class="card-title">{}</div>
-    <div class="card-artist">{}</div>
-    <div class="card-year">{}</div>
-    <div class="card-qr">
-        <div class="qr-placeholder" title="QR Code: {}"></div>
-    </div>
-</div>
-"#,
-                    html_escape::encode_text(&track.title),
-                    html_escape::encode_text(&track.artist),
-                    track.year,
-                    track.spotify_url
-                ));
-            }
-
-            html.push_str("</div>");
-        }
-
-        html.push_str("</body></html>");
-        html
-    }
-
-    fn generate_back_html(track_count: usize) -> String {
-        let mut html = String::new();
-
-        html.push_str(
-            r#"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Card Backs</title>
-    <style>
-        @page { size: A4; margin: 0; }
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-        .card-grid { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            grid-template-rows: repeat(4, 1fr);
-            gap: 10px;
-            height: 257mm;
-            width: 177mm;
-        }
-        .card-back { 
-            border: 1px solid #ccc; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-            text-align: center;
-            page-break-inside: avoid;
-        }
-    </style>
-</head>
-<body>
-"#,
+        current_layer.use_text(
+            "HITSTER - Card Backs",
+            24.0,
+            Mm(70.0),
+            Mm(200.0),
+            &font,
         );
 
-        // Generate back cards in chunks of 12 per page
-        for page in 0..track_count.div_ceil(12) {
-            if page > 0 {
-                html.push_str(r#"<div style="page-break-before: always;"></div>"#);
-            }
+        current_layer.use_text(
+            &format!("Total cards: {}", track_count),
+            16.0,
+            Mm(70.0),
+            Mm(170.0),
+            &font,
+        );
 
-            html.push_str(r#"<div class="card-grid">"#);
-
-            let cards_on_page = if page == track_count.div_ceil(12) - 1 {
-                let remainder = track_count % 12;
-                if remainder == 0 { 12 } else { remainder }
-            } else {
-                12
-            };
-
-            for _i in 0..cards_on_page {
-                html.push_str(r#"<div class="card-back">HITSTER</div>"#);
-            }
-
-            html.push_str("</div>");
-        }
-
-        html.push_str("</body></html>");
-        html
+        let bytes = Vec::new();
+        use std::io::BufWriter;
+        let mut buf_writer = BufWriter::new(bytes);
+        doc.save(&mut buf_writer)?;
+        Ok(buf_writer.into_inner().unwrap_or_default())
     }
 }
 

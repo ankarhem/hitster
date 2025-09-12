@@ -32,6 +32,9 @@ dotenv = "0.15"
 # QR code generation
 qrcode = "0.14"
 
+# PDF generation
+printpdf = "0.7"
+
 # HTML utilities
 html-escape = "0.2"
 

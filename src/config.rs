@@ -29,6 +29,10 @@ pub struct Settings {
     pub host: String,
     /// Server binding port
     pub port: u16,
+    /// Database pool size
+    pub db_pool_max_connections: u32,
+    /// Database connection timeout in seconds
+    pub db_pool_timeout_seconds: u64,
 }
 
 impl Settings {
@@ -68,9 +72,19 @@ impl Settings {
         let port = std::env::var("HITSTER_PORT")
             .map(|s| s.parse().unwrap_or(3000))
             .unwrap_or(3000);
+        
+        let db_pool_max_connections = std::env::var("DATABASE_POOL_MAX_CONNECTIONS")
+            .map(|s| s.parse().unwrap_or(10))
+            .unwrap_or(10);
+        
+        let db_pool_timeout_seconds = std::env::var("DATABASE_POOL_TIMEOUT_SECONDS")
+            .map(|s| s.parse().unwrap_or(30))
+            .unwrap_or(30);
 
         info!("Database path: {}", database_path);
         info!("Server will bind to {}:{}", host, port);
+        info!("Database pool size: {}", db_pool_max_connections);
+        info!("Database pool timeout: {} seconds", db_pool_timeout_seconds);
 
         Ok(Settings {
             client_id,
@@ -78,6 +92,8 @@ impl Settings {
             database_path,
             host,
             port,
+            db_pool_max_connections,
+            db_pool_timeout_seconds,
         })
     }
 }
