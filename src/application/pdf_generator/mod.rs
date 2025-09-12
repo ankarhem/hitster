@@ -1,11 +1,6 @@
 use crate::domain::Playlist;
 use anyhow::Result;
-use printpdf::PdfDocument;
-use std::collections::BTreeMap;
-use askama::Template;
-use tracing::info;
-
-mod html;
+use oxidize_pdf::{Color, Document, Font, Page};
 
 #[trait_variant::make(IPdfGenerator: Send)]
 pub trait _IPdfGenerator: Send + Sync {
@@ -22,40 +17,35 @@ impl PdfGenerator {
 
 impl IPdfGenerator for PdfGenerator {
     async fn generate_front_cards(&self, playlist: &Playlist) -> Result<Vec<u8>> {
-        let template = html::PdfTemplate {
-            title: playlist.name.clone(),
-            track_chunks: playlist
-                .clone()
-                .tracks
-                .chunks(24)
-                .map(|tracks| {
-                    tracks.chunks(6).map(|row| {
-                        row
-                            .iter()
-                            .map(|track| {
-                                html::PdfTrack {
-                                    title: track.title.clone(),
-                                    artist: track.artist.clone(),
-                                    year: track.year,
-                                    qr_code: "qr_code".to_string(),
-                                }})
-                            .collect()
-                    }).collect()
-                })
-                .collect::<Vec<_>>(),
-        };
-        let html_content = template.render()?;
-        let images = BTreeMap::new();
-        let fonts = BTreeMap::new();
-        let mut warnings = Vec::new();
+        let mut doc = Document::new();
+        doc.set_title("My First PDF");
+        doc.set_author("Rust Developer");
 
-        let doc = PdfDocument::from_html(&html_content, &images, &fonts, &Default::default(), &mut warnings)
-            .map_err(|e| anyhow::anyhow!(e))?;
 
-        info!("PDF generation warnings: {:?}", warnings);
-        
-        let pdf_bytes = doc.save(&Default::default(), &mut warnings);
-        Ok(pdf_bytes)
+        // 6x4 grid = 24 cards per page
+        for tracks_on_page in playlist.tracks.chunks(24) {
+            let mut page = Page::a4();
+
+            let width = page.width() / 4.0 - 4.0;
+            let height = page.height() / 6.0 - 6.0;
+            for (idx_col, rows) in tracks_on_page.chunks(4).enumerate() {
+                for (idx_row, track) in rows.iter().enumerate() {
+                    let pos_x = 0.0 + (idx_row as f64 * width);
+                    let pos_y = 842.0 - (idx_col as f64 * height);
+                    page.graphics()
+                        .set_stroke_color(Color::black())
+                        .rectangle(pos_x + 2.0, pos_y, width, height)
+                        .set_alpha(0.0)?
+                        .fill_stroke()
+                        .fill();
+                }
+            }
+
+            doc.add_page(page);
+        }
+
+        let bytes = doc.to_bytes()?;
+        Ok(bytes)
     }
 
     async fn generate_back_cards(&self, playlist: &Playlist) -> Result<Vec<u8>> {

@@ -33,10 +33,7 @@ dotenv = "0.15"
 qrcode = "0.14"
 
 # PDF generation
-printpdf = { version = "0.8", features = ["html"] }
-
-# HTML utilities
-html-escape = "0.2"
+oxidize-pdf = {version = "1.2", features = ["compression"]}
 
 # Templating
 askama = "0.14"
