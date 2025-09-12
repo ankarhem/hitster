@@ -32,24 +32,19 @@ impl IPdfGenerator for PdfGenerator {
             // 4 columns, 6 rows
             let cols = 4;
             let rows = 6;
-            
-            // Calculate card dimensions with margins
-            let margin = 10.0; // 10mm margin
-            let spacing = 2.0; // 2mm spacing between cards
-            
-            let available_width = page_width - 2.0 * margin;
-            let available_height = page_height - 2.0 * margin;
-            
-            let card_width = (available_width - (cols - 1) as f64 * spacing) / cols as f64;
-            let card_height = (available_height - (rows - 1) as f64 * spacing) / rows as f64;
+
+            let card_width = page_width / cols as f64;
+            let card_height = page_height / rows as f64;
             
             for (index, _track) in tracks_on_page.iter().enumerate() {
-                let row = index / cols;
+                dbg!(index);
+                
+                let row = index / cols + 1;
                 let col = index % cols;
-                
-                let pos_x = margin + col as f64 * (card_width + spacing);
-                let pos_y = margin + row as f64 * (card_height + spacing);
-                
+
+                let pos_x = col as f64 * card_width;
+                let pos_y = page.height() - row as f64 * card_height;
+
                 page.graphics()
                     .set_stroke_color(Color::black())
                     .rectangle(pos_x, pos_y, card_width, card_height)
