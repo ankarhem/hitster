@@ -50,10 +50,11 @@ impl IPdfGenerator for PdfGenerator {
                     .stroke();
 
                 // Add text content
-                let text_margin = 8.0;
+                let padding = 18.0;
                 let line_height = 16.0;
-                let padding = 10.0;
-                
+                // Gap between artist and title
+                let gap = 4.0;
+
                 // Handle artist name - split by commas for multiple artists
                 let artists: Vec<&str> = track.artist.split(',').map(|s| s.trim()).collect();
                 let mut current_line = 0;
@@ -66,8 +67,8 @@ impl IPdfGenerator for PdfGenerator {
                     if !artist.is_empty() {
                         let _ = page.text()
                             .set_font(Font::Helvetica, 16.0)
-                            .at(pos_x + text_margin + padding, 
-                                pos_y + card_height - text_margin - line_height - padding - (current_line as f64 * line_height))
+                            .at(pos_x + padding,
+                                pos_y + card_height - line_height - padding - (current_line as f64 * line_height))
                             .write(&artist_string);
                         current_line += 1;
                     }
@@ -76,14 +77,14 @@ impl IPdfGenerator for PdfGenerator {
                 // Title - place it after all artist lines
                 let _ = page.text()
                     .set_font(Font::Helvetica, 12.0)
-                    .at(pos_x + text_margin + padding, 
-                        pos_y + card_height - text_margin - line_height - padding - (current_line as f64 * line_height) - 4.0)
+                    .at(pos_x + padding,
+                        pos_y + card_height - line_height - padding - gap - (current_line as f64 * line_height))
                     .write(&track.title);
                 
                 // Year at bottom
                 let _ = page.text()
                     .set_font(Font::Helvetica, 32.0)
-                    .at(pos_x + text_margin + padding, pos_y + line_height + padding)
+                    .at(pos_x + padding, pos_y + line_height + padding)
                     .write(&track.year.to_string());
             }
 
