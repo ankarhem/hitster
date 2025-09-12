@@ -34,10 +34,8 @@ impl IPdfGenerator for PdfGenerator {
                     let pos_y = 842.0 - (idx_col as f64 * height);
                     page.graphics()
                         .set_stroke_color(Color::black())
-                        .rectangle(pos_x + 2.0, pos_y, width, height)
-                        .set_alpha(0.0)?
-                        .fill_stroke()
-                        .fill();
+                        .rectangle(pos_x, pos_y, width, height)
+                        .stroke();
                 }
             }
 
