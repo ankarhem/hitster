@@ -1,8 +1,8 @@
 use crate::application::playlist_service::IPlaylistService;
 use crate::web::controllers;
 use axum::{
-    Router,
     routing::{get, post},
+    Router,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -37,30 +37,33 @@ where
     let services = Services { playlist_service };
 
     let app = Router::new()
-        // View endpoints
-        .route("/", get(controllers::view::index))
-        .route(
-            "/playlist/:playlist_id",
-            get(controllers::view::view_playlist),
-        )
         // Playlist API endpoints
         .route(
             "/api/playlist",
             post(controllers::playlist::create_playlist),
         )
         .route(
-            "/api/playlist/:playlist_id/refetch-playlist",
+            "/api/playlist/{playlist_id}/refetch-playlist",
             post(controllers::playlist::refetch_playlist),
         )
         .route(
-            "/api/playlist/:playlist_id/generate-pdfs",
+            "/api/playlist/{playlist_id}/generate-pdfs",
             post(controllers::playlist::generate_pdfs),
         )
         .route(
-            "/api/playlist/:playlist_id/pdfs",
+            "/api/playlist/{playlist_id}/pdfs",
             get(controllers::playlist::get_pdfs),
         )
+
+        // View endpoints
+        .route("/", get(controllers::view::index))
+        .route(
+            "/playlist/{playlist_id}",
+            get(controllers::view::view_playlist),
+        )
+
         .with_state(services);
+
 
     let addr = format!("{}:{}", host, port);
     info!("Listening on {}", addr);
