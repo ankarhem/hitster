@@ -1,4 +1,4 @@
-use crate::application::{IJobsRepository, IPlaylistRepository, ISpotifyClient};
+use crate::application::{IJobsRepository, IPlaylistRepository, IPdfGenerator, ISpotifyClient};
 use crate::domain::{Job, JobKind, JobStatus, Pdf, Playlist, PlaylistId, SpotifyId};
 use std::sync::Arc;
 use tracing::info;
@@ -13,44 +13,50 @@ pub trait _IPlaylistService: Send + Sync {
 }
 
 #[derive(Clone)]
-pub struct PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
+pub struct PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
 where
     PlaylistRepository: IPlaylistRepository,
     SpotifyClient: ISpotifyClient,
     JobsRepository: IJobsRepository,
+    PdfGenerator: IPdfGenerator,
 {
     spotify_client: Arc<SpotifyClient>,
     playlist_repository: Arc<PlaylistRepository>,
     #[allow(dead_code)]
     jobs_repository: Arc<JobsRepository>,
+    pdf_generator: Arc<PdfGenerator>,
 }
 
-impl<SpotifyClient, PlaylistRepository, JobsRepository>
-    PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
+impl<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
+    PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
 where
     PlaylistRepository: IPlaylistRepository,
     SpotifyClient: ISpotifyClient,
     JobsRepository: IJobsRepository,
+    PdfGenerator: IPdfGenerator,
 {
     pub fn new(
         playlist_repository: Arc<PlaylistRepository>,
         spotify_client: Arc<SpotifyClient>,
         jobs_repository: Arc<JobsRepository>,
+        pdf_generator: Arc<PdfGenerator>,
     ) -> Self {
         Self {
             spotify_client,
             playlist_repository,
             jobs_repository,
+            pdf_generator,
         }
     }
 }
 
-impl<SpotifyClient, PlaylistRepository, JobsRepository> IPlaylistService
-    for PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository>
+impl<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator> IPlaylistService
+    for PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
 where
     PlaylistRepository: IPlaylistRepository,
     SpotifyClient: ISpotifyClient,
     JobsRepository: IJobsRepository,
+    PdfGenerator: IPdfGenerator,
 {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>> {
         if let Some(existing) = self.playlist_repository.get_by_spotify_id(id).await? {
@@ -100,7 +106,21 @@ where
 
         // In a real implementation, this would be handled by a background worker
         // For now, we'll generate the PDFs synchronously
-        let (front_path, back_path) = crate::pdf_generator::generate_pdfs(&playlist).await?;
+        let front_pdf_data = self.pdf_generator.generate_front_cards(&playlist).await?;
+        let back_pdf_data = self.pdf_generator.generate_back_cards(&playlist).await?;
+        
+        // Create output directory if it doesn't exist
+        let output_dir = std::path::PathBuf::from("generated_pdfs");
+        tokio::fs::create_dir_all(&output_dir).await?;
+        
+        let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+        let base_filename = format!("{}_{}", playlist.id, timestamp);
+        
+        let front_path = output_dir.join(format!("{}_front.pdf", base_filename));
+        let back_path = output_dir.join(format!("{}_back.pdf", base_filename));
+        
+        tokio::fs::write(&front_path, front_pdf_data).await?;
+        tokio::fs::write(&back_path, back_pdf_data).await?;
 
         // Update the job with the results
         let mut completed_job = job.clone();
@@ -114,7 +134,7 @@ where
 
         self.jobs_repository.update(completed_job).await?;
 
-        info!("Generated PDFs for playlist {}: {}, {}", id, front_path, back_path);
+        info!("Generated PDFs for playlist {}: {}, {}", id, front_path.display(), back_path.display());
 
         Ok(job)
     }

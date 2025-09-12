@@ -1,11 +1,10 @@
 use anyhow::Result;
-use hitster::SpotifyClient;
+use hitster::{SpotifyClient, PdfGenerator};
 use hitster::application::PlaylistService;
 use hitster::infrastructure::JobsRepository;
 use hitster::infrastructure::playlist::PlaylistRepository;
 use hitster::web::server::run;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use std::sync::Arc;
+use sqlx::sqlite::{SqliteConnectOptions};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -16,7 +15,7 @@ async fn main() -> Result<()> {
     let settings = hitster::Settings::new()?;
 
     // infrastructure
-    let spotify_client = Arc::new(SpotifyClient::new(&settings).await?);
+    let spotify_client = SpotifyClient::new(&settings).await?.into();
 
     // Database setup with connection pooling
     let sqlite_pool = sqlx::sqlite::SqlitePoolOptions::new()
@@ -32,10 +31,11 @@ async fn main() -> Result<()> {
 
     let jobs_repository = JobsRepository::new(sqlite_pool.clone()).into();
     let playlist_repository = PlaylistRepository::new(sqlite_pool.clone()).await?.into();
+    let pdf_generator = PdfGenerator::new().into();
 
     // application
     let playlist_service =
-        PlaylistService::new(playlist_repository, spotify_client, jobs_repository).into();
+        PlaylistService::new(playlist_repository, spotify_client, jobs_repository, pdf_generator).into();
 
     run(&settings.host, settings.port, playlist_service).await?;
 
