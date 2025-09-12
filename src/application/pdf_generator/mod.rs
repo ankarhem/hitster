@@ -1,50 +1,9 @@
 use crate::domain::Playlist;
 use anyhow::Result;
+use askama::filters::format;
 use oxidize_pdf::{Color, Document, Font, Page};
+use qrcode::render::svg;
 
-// Helper function to wrap text to fit within a specified width
-fn wrap_text(text: &str, max_chars_per_line: usize) -> Vec<String> {
-    let mut lines = Vec::new();
-    
-    // First split by commas for multiple artists
-    let comma_parts: Vec<&str> = text.split(',').map(|s| s.trim()).collect();
-    
-    for part in comma_parts {
-        if part.is_empty() {
-            continue;
-        }
-        
-        // If this part is short enough, add it as a single line
-        if part.len() <= max_chars_per_line {
-            lines.push(part.to_string());
-        } else {
-            // Split long parts by spaces for word wrapping
-            let words: Vec<&str> = part.split_whitespace().collect();
-            let mut current_line = String::new();
-            
-            for word in words {
-                // If adding this word would exceed the line length
-                if current_line.len() + word.len() + 1 > max_chars_per_line && !current_line.is_empty() {
-                    lines.push(current_line.trim().to_string());
-                    current_line = String::new();
-                }
-                
-                if current_line.is_empty() {
-                    current_line = word.to_string();
-                } else {
-                    current_line.push(' ');
-                    current_line.push_str(word);
-                }
-            }
-            
-            if !current_line.is_empty() {
-                lines.push(current_line.trim().to_string());
-            }
-        }
-    }
-    
-    lines
-}
 
 #[trait_variant::make(IPdfGenerator: Send)]
 pub trait _IPdfGenerator: Send + Sync {
@@ -62,9 +21,7 @@ impl PdfGenerator {
 impl IPdfGenerator for PdfGenerator {
     async fn generate_front_cards(&self, playlist: &Playlist) -> Result<Vec<u8>> {
         let mut doc = Document::new();
-        doc.set_title("My First PDF");
-        doc.set_author("Rust Developer");
-
+        doc.set_title(format!("{} - Front", playlist.name));
 
         // 4x6 grid = 24 cards per page
         for tracks_on_page in playlist.tracks.chunks(24) {
@@ -154,7 +111,116 @@ impl IPdfGenerator for PdfGenerator {
         Ok(bytes)
     }
 
-    async fn generate_back_cards(&self, _playlist: &Playlist) -> Result<Vec<u8>> {
-        Ok(vec![])
+    async fn generate_back_cards(&self, playlist: &Playlist) -> Result<Vec<u8>> {
+        let mut doc = Document::new();
+        doc.set_title(format!("{} - Back", playlist.name));
+
+        // 4x6 grid = 24 cards per page (same as front)
+        for tracks_on_page in playlist.tracks.chunks(24) {
+            let mut page = Page::a4();
+
+            let page_width = page.width();
+            let page_height = page.height();
+            
+            // 4 columns, 6 rows
+            let cols = 4;
+            let rows = 6;
+
+            let card_width = page_width / cols as f64;
+            let card_height = page_height / rows as f64;
+            
+            for (index, track) in tracks_on_page.iter().enumerate() {
+                let row = index / cols + 1;
+                let col = index % cols;
+
+                let pos_x = col as f64 * card_width;
+                let pos_y = page.height() - row as f64 * card_height;
+
+                // Draw rectangle border
+                page.graphics()
+                    .set_stroke_color(Color::black())
+                    .rectangle(pos_x, pos_y, card_width, card_height)
+                    .stroke();
+
+                let qr_image = generate_qr_code_image(&track.spotify_url)?;
+                // Create QR code png image
+                let _ = page.add_image(
+                    &track.spotify_url,
+                    qr_image,
+                );
+                page.draw_image(
+                    &track.spotify_url,
+                    pos_x + 5.0,
+                    pos_y + 5.0,
+                    card_width - 10.0,
+                    card_height - 10.0,
+                )?;
+            }
+
+            doc.add_page(page);
+        }
+
+        let bytes = doc.to_bytes()?;
+        Ok(bytes)
     }
+}
+
+fn generate_qr_code_image(url: &str) -> Result<oxidize_pdf::Image> {
+    let code = qrcode::QrCode::new(url)?;
+    let image = code.render::<image::Rgba<u8>>()
+        .min_dimensions(200, 200)
+        .build();
+
+    let image_w = image.width();
+    let image_h = image.height();
+
+    let pdf_image = oxidize_pdf::Image::from_rgba_data(
+        image.into_raw(),
+        image_w,
+        image_h,
+    )?;
+
+    Ok(pdf_image)
+}
+fn wrap_text(text: &str, max_chars_per_line: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+
+    // First split by commas for multiple artists
+    let comma_parts: Vec<&str> = text.split(',').map(|s| s.trim()).collect();
+
+    for part in comma_parts {
+        if part.is_empty() {
+            continue;
+        }
+
+        // If this part is short enough, add it as a single line
+        if part.len() <= max_chars_per_line {
+            lines.push(part.to_string());
+        } else {
+            // Split long parts by spaces for word wrapping
+            let words: Vec<&str> = part.split_whitespace().collect();
+            let mut current_line = String::new();
+
+            for word in words {
+                // If adding this word would exceed the line length
+                if current_line.len() + word.len() + 1 > max_chars_per_line && !current_line.is_empty() {
+                    lines.push(current_line.trim().to_string());
+                    current_line = String::new();
+                }
+
+                if current_line.is_empty() {
+                    current_line = word.to_string();
+                } else {
+                    current_line.push(' ');
+                    current_line.push_str(word);
+                }
+            }
+
+            if !current_line.is_empty() {
+                lines.push(current_line.trim().to_string());
+            }
+        }
+    }
+
+    lines
 }
