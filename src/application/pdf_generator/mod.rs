@@ -54,22 +54,36 @@ impl IPdfGenerator for PdfGenerator {
                 let line_height = 16.0;
                 let padding = 10.0;
                 
-                // Artist at top (first line)
-                let _ = page.text()
-                    .set_font(Font::Helvetica, 16.0)
-                    .at(pos_x + text_margin + padding, pos_y + card_height - text_margin - line_height - padding)
-                    .write(&track.artist);
+                // Handle artist name - split by commas for multiple artists
+                let artists: Vec<&str> = track.artist.split(',').map(|s| s.trim()).collect();
+                let mut current_line = 0;
                 
-                // Title at top (second line)
+                for (idx, artist) in artists.iter().enumerate() {
+                    let artist_string = match idx == artists.len() - 1 {
+                        true => artist.to_string(),
+                        false => format!("{},", artist),
+                    };
+                    if !artist.is_empty() {
+                        let _ = page.text()
+                            .set_font(Font::Helvetica, 16.0)
+                            .at(pos_x + text_margin + padding, 
+                                pos_y + card_height - text_margin - line_height - padding - (current_line as f64 * line_height))
+                            .write(&artist_string);
+                        current_line += 1;
+                    }
+                }
+                
+                // Title - place it after all artist lines
                 let _ = page.text()
                     .set_font(Font::Helvetica, 12.0)
-                    .at(pos_x + text_margin + padding, pos_y + card_height - text_margin - (line_height * 2.0) - padding)
+                    .at(pos_x + text_margin + padding, 
+                        pos_y + card_height - text_margin - line_height - padding - (current_line as f64 * line_height) - 4.0)
                     .write(&track.title);
                 
                 // Year at bottom
                 let _ = page.text()
                     .set_font(Font::Helvetica, 32.0)
-                    .at(pos_x + text_margin + padding, pos_y + text_margin + line_height + padding)
+                    .at(pos_x + text_margin + padding, pos_y + line_height + padding)
                     .write(&track.year.to_string());
             }
 
