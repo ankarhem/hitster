@@ -10,6 +10,7 @@ path = "src/lib.rs"
 [dependencies]
 # Async runtime
 tokio = { version = "1.47", features = ["full"] }
+tokio-stream = { version = "0.1" }
 
 # Web framework
 axum = "0.8"
@@ -58,7 +59,6 @@ chrono = { version = "0.4", features = ["serde"] }
 # Add boundaries for async traits
 trait-variant = "0.1.2"
 winnow = "0.7.13"
-base64 = "0.22.1"
 
 [package.metadata.askama]
 templates = "src/web/templates"

@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+use std::time::Duration;
 use crate::application::playlist_service::IPlaylistService;
 use crate::domain::spotify_id::SpotifyId;
 use crate::web::error::ApiError;
@@ -7,10 +9,17 @@ use axum::{
     extract::{Path, State},
     response::{Json, Redirect},
 };
-use base64::prelude::*;
+use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
+use axum::http::{HeaderMap, HeaderValue};
+use axum::response::{IntoResponse, Response, Sse};
+use axum::response::sse::{Event, KeepAlive};
+use tokio_stream::{self as stream, StreamExt};
+use futures_util::{self, Stream};
+use futures_util::stream::repeat_with;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::domain::PlaylistId;
+use crate::domain::{JobId, JobStatus, PlaylistId};
+use crate::web::extensions::HtmxExtension;
 
 const MAX_PLAYLIST_ID_LENGTH: usize = 200;
 const MIN_PLAYLIST_ID_LENGTH: usize = 16; // Spotify IDs are typically 22 characters
@@ -67,22 +76,26 @@ where
 pub async fn refetch_playlist<PlaylistService>(
     State(services): State<Services<PlaylistService>>,
     Path(playlist_id): Path<String>,
-) -> Result<Json<()>, ApiError>
+) -> Result<Json<JobResponse>, ApiError>
 where
     PlaylistService: IPlaylistService,
 {
     let playlist_id: PlaylistId = playlist_id.parse()?;
-    services
+    let job = services
         .playlist_service
         .refetch_playlist(&playlist_id)
         .await?;
-    Ok(Json(()))
+
+    Ok(Json(JobResponse {
+        job_id: job.id.into(),
+    }))
 }
 
 pub async fn generate_pdfs<PlaylistService>(
     State(services): State<Services<PlaylistService>>,
     Path(playlist_id): Path<String>,
-) -> Result<Json<JobResponse>, ApiError>
+    headers: HeaderMap,
+) -> Result<Response, ApiError>
 where
     PlaylistService: IPlaylistService,
 {
@@ -92,39 +105,82 @@ where
         .generate_playlist_pdfs(&playlist_id)
         .await?;
 
-    Ok(Json(JobResponse {
-        job_id: job.id.into(),
-    }))
+    // If the request is from HTMX reload the current page
+    if headers.is_htmx_request() {
+        let redirect_to = format!("/playlist/{}", playlist_id);
+        let mut headers = HeaderMap::new();
+        headers.insert("HX-Redirect", HeaderValue::from_str(&redirect_to).unwrap());
+        return Ok((headers, axum::body::Body::empty()).into_response())
+    }
+
+    Ok(
+        Json(JobResponse {
+            job_id: job.id.into(),
+        }).into_response()
+    )
 }
 
-#[derive(Serialize)]
-pub struct PdfResponse {
-    front: String,
-    back: String,
-}
-
-pub async fn get_pdfs<PlaylistService>(
-    State(server): State<Services<PlaylistService>>,
-    Path(playlist_id): Path<String>,
-) -> Result<Json<PdfResponse>, ApiError>
+pub async fn download_pdf<PlaylistService>(
+    State(services): State<Services<PlaylistService>>,
+    Path((playlist_id, pdf_side)): Path<(String, String)>,
+) -> Result<Response, ApiError>
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id: PlaylistId = playlist_id.parse()?;
+    let playlist_id: crate::domain::PlaylistId = playlist_id.parse()?;
 
-    let pdfs = server
-        .playlist_service
-        .get_playlist_pdfs(&playlist_id)
-        .await?;
+    // Validate PDF type
+    if pdf_side != "front" && pdf_side != "back" {
+        return Err(ApiError::ValidationError("Invalid PDF type. Must be 'front' or 'back'".to_string()));
+    }
 
-    Ok(Json(PdfResponse {
-        front: format!(
-            "data:application/pdf;base64,{}",
-            BASE64_STANDARD.encode(&pdfs[0])
-        ),
-        back: format!(
-            "data:application/pdf;base64,{}",
-            BASE64_STANDARD.encode(&pdfs[1])
-        ),
-    }))
+    // Get the PDFs from the service
+    let pdfs = services.playlist_service.get_playlist_pdfs(&playlist_id).await?;
+
+    let pdf_data = match pdf_side.as_str() {
+        "front" => pdfs[0].clone(),
+        "back" => pdfs[1].clone(),
+        _ => unreachable!(), // We already validated above
+    };
+
+    let filename = format!("hitster_cards_{}_{}.pdf", playlist_id, pdf_side);
+
+    Ok((
+        [
+            (CONTENT_TYPE, HeaderValue::from_static("application/pdf")),
+            (CONTENT_DISPOSITION, HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename)).unwrap()),
+        ],
+        Vec::<u8>::from(pdf_data), // Convert Pdf to Vec<u8>
+    ).into_response())
+}
+
+pub async fn get_job_status<PlaylistService>(
+    State(services): State<Services<PlaylistService>>,
+    Path((playlist_id, job_id)): Path<(String, String)>,
+) -> Sse<impl Stream<Item = Result<Event, ApiError>>>
+where
+    PlaylistService: IPlaylistService + Send + Sync + 'static,
+{
+    let playlist_id: PlaylistId = playlist_id.parse().unwrap();
+    let job_id: JobId = job_id.parse().unwrap();
+
+    let stream =
+        tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(Duration::from_millis(200)))
+            .then(move |_| {
+                let job_id = job_id.clone();
+                let playlist_service = services.playlist_service.clone();
+                async move {
+                    let job = playlist_service.get_job_by_id(&job_id).await?;
+
+                    match job {
+                        Some(ref j) if j.status == JobStatus::Completed => {
+                            Ok(Event::default().event("done").data("completed"))
+                        },
+                        Some(ref j) => Ok(Event::default().event("status").data(j.status.to_string())),
+                        None => Err(ApiError::NotFound),
+                    }
+                }
+            });
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }

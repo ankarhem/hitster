@@ -1,5 +1,5 @@
 use crate::application::{IJobsRepository, IPlaylistRepository, IPdfGenerator, ISpotifyClient, worker};
-use crate::domain::{Job, JobStatus, Pdf, Playlist, PlaylistId, SpotifyId};
+use crate::domain::{Job, JobId, JobStatus, Pdf, Playlist, PlaylistId, SpotifyId};
 use std::sync::Arc;
 use tracing::info;
 use crate::application::worker::{GeneratePlaylistPdfsResult, IWorker};
@@ -11,6 +11,8 @@ pub trait _IPlaylistService: Send + Sync {
     async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job>;
     async fn get_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<[Pdf; 2]>;
     async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<Job>;
+    async fn get_latest_job(&self, playlist_id: &PlaylistId) -> anyhow::Result<Option<Job>>;
+    async fn get_job_by_id(&self, job_id: &JobId) -> anyhow::Result<Option<Job>>;
 }
 
 #[derive(Clone)]
@@ -136,6 +138,17 @@ where
         let task = worker::RefetchPlaylistTask::new(playlist.id);
         let job = self.refetch_worker.enqueue(task).await?;
 
+        Ok(job)
+    }
+
+    async fn get_latest_job(&self, playlist_id: &PlaylistId) -> anyhow::Result<Option<Job>> {
+        let jobs = self.jobs_repository.get_by_playlist_id(playlist_id).await?;
+        Ok(jobs.into_iter().max_by_key(|j| j.created_at))
+    }
+
+    async fn get_job_by_id(&self, job_id: &JobId) -> anyhow::Result<Option<Job>> {
+        let job = self.jobs_repository.get(job_id).await?;
+        
         Ok(job)
     }
 }

@@ -1,13 +1,14 @@
 use crate::application::playlist_service::IPlaylistService;
 use crate::web::error::TemplateError;
 use crate::web::server::Services;
-use crate::web::templates::playlist::TrackVM;
+use crate::web::templates::playlist::{JobVM, TrackVM};
 use crate::web::templates::{IndexTemplate, PlaylistTemplate};
 use askama::Template;
 use axum::{
     extract::{Path, State},
     response::Html,
 };
+use crate::application::worker::GeneratePlaylistPdfsResult;
 use crate::domain::PlaylistId;
 
 pub async fn index() -> Result<Html<String>, TemplateError> {
@@ -56,13 +57,20 @@ where
         })
         .collect::<Result<Vec<_>, _>>()?;
 
+    let latest_job = server.playlist_service.get_latest_job(&playlist_id).await?;
+    let latest_job = latest_job.map(|job| JobVM {
+        id: job.id.to_string(),
+        is_in_progress: job.status != crate::domain::JobStatus::Completed,
+    });
+
+    let has_pdfs = server.playlist_service.get_playlist_pdfs(&playlist_id).await.ok().is_some();
     let template = PlaylistTemplate {
         title: playlist.name.clone(),
         total_tracks,
         tracks,
-        job_id: "not implemented".to_string(),
         playlist_id: playlist_id.to_string(),
-        has_completed_job: false,
+        latest_job,
+        has_generated_pdfs: has_pdfs,
     };
 
     Ok(Html(template.render()?))

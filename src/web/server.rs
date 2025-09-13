@@ -51,8 +51,12 @@ where
             post(controllers::playlist::generate_pdfs),
         )
         .route(
-            "/api/playlist/{playlist_id}/pdfs",
-            get(controllers::playlist::get_pdfs),
+            "/api/playlist/{playlist_id}/download-pdf/{side}",
+            get(controllers::playlist::download_pdf),
+        )
+        .route(
+            "/api/playlist/{playlist_id}/jobs/{job_id}/status",
+            get(controllers::playlist::get_job_status),
         )
 
         // View endpoints
