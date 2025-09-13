@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1";
+    naersk.url = "github:nix-community/naersk";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -15,7 +16,7 @@
         [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forEachSupportedSystem = f:
         inputs.nixpkgs.lib.genAttrs supportedSystems (system:
-          f {
+          f rec {
             pkgs = import inputs.nixpkgs {
               inherit system;
               overlays = [
@@ -23,6 +24,7 @@
                 inputs.self.overlays.default
               ];
             };
+            naerskLib = pkgs.callPackage inputs.naersk { };
           });
     in {
       overlays.default = final: prev: {
@@ -36,6 +38,15 @@
             extensions = [ "rust-src" "rustfmt" ];
           };
       };
+
+      packages = forEachSupportedSystem ({ pkgs, naerskLib }: {
+        default = naerskLib.buildPackage {
+          pname = "hitster";
+          src = ./.;
+          buildInputs = with pkgs; [ rustToolchain openssl sqlx-cli ];
+          nativeBuildInputs = with pkgs; [ pkg-config ];
+        };
+      });
 
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {

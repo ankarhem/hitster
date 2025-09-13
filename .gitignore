@@ -34,7 +34,6 @@ config.json
 
 # Database
 db/hitster.db
-.sqlx/
 generated_pdfs/
 
 # MacOS
