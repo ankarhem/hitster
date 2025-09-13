@@ -29,8 +29,8 @@ pub struct JobEntity {
     pub status: JobStatusEntity,
     pub created_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
-    pub kind: JobKindEntity,
     pub payload: serde_json::Value,
+    pub result: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, sqlx::Type)]
@@ -94,11 +94,11 @@ impl From<JobEntity> for domain::Job {
     fn from(entity: JobEntity) -> Self {
         Self {
             id: entity.id.into(),
-            kind: entity.kind.into(),
             status: entity.status.into(),
             created_at: entity.created_at,
             completed_at: entity.completed_at,
             payload: entity.payload,
+            result: entity.result,
         }
     }
 }
@@ -114,15 +114,6 @@ impl From<JobStatusEntity> for domain::JobStatus {
     }
 }
 
-impl From<JobKindEntity> for domain::JobKind {
-    fn from(kind: JobKindEntity) -> Self {
-        match kind {
-            JobKindEntity::GeneratePdfs => domain::JobKind::GeneratePdfs,
-            JobKindEntity::RefetchPlaylist => domain::JobKind::RefetchPlaylist,
-        }
-    }
-}
-
 // --------------  Reverse Conversions ----------------
 
 impl From<domain::Job> for JobEntity {
@@ -132,8 +123,8 @@ impl From<domain::Job> for JobEntity {
             status: job.status.into(),
             created_at: job.created_at,
             completed_at: job.completed_at,
-            kind: job.kind.into(),
             payload: job.payload,
+            result: job.result,
         }
     }
 }
@@ -145,15 +136,6 @@ impl From<domain::JobStatus> for JobStatusEntity {
             domain::JobStatus::Processing => JobStatusEntity::Processing,
             domain::JobStatus::Completed => JobStatusEntity::Completed,
             domain::JobStatus::Failed => JobStatusEntity::Failed,
-        }
-    }
-}
-
-impl From<domain::JobKind> for JobKindEntity {
-    fn from(kind: domain::JobKind) -> Self {
-        match kind {
-            domain::JobKind::GeneratePdfs => JobKindEntity::GeneratePdfs,
-            domain::JobKind::RefetchPlaylist => JobKindEntity::RefetchPlaylist,
         }
     }
 }

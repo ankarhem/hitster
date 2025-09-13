@@ -1,10 +1,12 @@
+use std::sync::Arc;
 use anyhow::Result;
 use hitster::{SpotifyClient, PdfGenerator};
-use hitster::application::PlaylistService;
+use hitster::application::{worker, PlaylistService};
 use hitster::infrastructure::JobsRepository;
 use hitster::infrastructure::playlist::PlaylistRepository;
 use hitster::web::server::run;
 use sqlx::sqlite::{SqliteConnectOptions};
+use hitster::application::worker::{GeneratePlaylistPdfsTask, RefetchPlaylistTask, Worker};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -15,7 +17,7 @@ async fn main() -> Result<()> {
     let settings = hitster::Settings::new()?;
 
     // infrastructure
-    let spotify_client = SpotifyClient::new(&settings).await?.into();
+    let spotify_client = Arc::new(SpotifyClient::new(&settings).await?);
 
     // Database setup with connection pooling
     let sqlite_pool = sqlx::sqlite::SqlitePoolOptions::new()
@@ -29,13 +31,24 @@ async fn main() -> Result<()> {
         .await?;
     sqlx::migrate!("./migrations").run(&sqlite_pool).await?;
 
-    let jobs_repository = JobsRepository::new(sqlite_pool.clone()).into();
-    let playlist_repository = PlaylistRepository::new(sqlite_pool.clone()).await?.into();
-    let pdf_generator = PdfGenerator::new().into();
+    let jobs_repository = Arc::new(JobsRepository::new(sqlite_pool.clone()));
+    let playlist_repository = Arc::new(PlaylistRepository::new(sqlite_pool.clone()).await?);
+    let pdf_generator = Arc::new(PdfGenerator::new());
+    
+    let pdf_worker_state = worker::GeneratePlaylistPdfsState {
+        playlist_repository: playlist_repository.clone(),
+        pdf_generator: pdf_generator.clone(),
+    };
+    let pdf_worker: Worker<JobsRepository, GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>> = Worker::new(jobs_repository.clone(), pdf_worker_state);
+    let refetch_worker_state = worker::RefetchPlaylistState {
+        playlist_repository: playlist_repository.clone(),
+        spotify_client: spotify_client.clone(),
+    };
+    let refetch_worker: Worker<JobsRepository, RefetchPlaylistTask<PlaylistRepository, SpotifyClient>> = Worker::new(jobs_repository.clone(), refetch_worker_state);
 
     // application
     let playlist_service =
-        PlaylistService::new(playlist_repository, spotify_client, jobs_repository, pdf_generator).into();
+        PlaylistService::new(playlist_repository, spotify_client, jobs_repository, Arc::new(pdf_worker), Arc::new(refetch_worker)).into();
 
     run(&settings.host, settings.port, playlist_service).await?;
 

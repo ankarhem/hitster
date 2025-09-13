@@ -1,7 +1,8 @@
-use crate::application::{IJobsRepository, IPlaylistRepository, IPdfGenerator, ISpotifyClient};
-use crate::domain::{Job, JobKind, JobStatus, Pdf, Playlist, PlaylistId, SpotifyId};
+use crate::application::{IJobsRepository, IPlaylistRepository, IPdfGenerator, ISpotifyClient, worker};
+use crate::domain::{Job, JobStatus, Pdf, Playlist, PlaylistId, SpotifyId};
 use std::sync::Arc;
 use tracing::info;
+use crate::application::worker::{IWorker, IWorkerTask};
 
 #[trait_variant::make(IPlaylistService: Send)]
 pub trait _IPlaylistService: Send + Sync {
@@ -22,30 +23,32 @@ where
 {
     spotify_client: Arc<SpotifyClient>,
     playlist_repository: Arc<PlaylistRepository>,
-    #[allow(dead_code)]
     jobs_repository: Arc<JobsRepository>,
-    pdf_generator: Arc<PdfGenerator>,
+    pdf_worker: Arc<worker::Worker<JobsRepository, worker::GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>>>,
+    refetch_worker: Arc<worker::Worker<JobsRepository, worker::RefetchPlaylistTask<PlaylistRepository, SpotifyClient>>>,
 }
 
 impl<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
     PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
 where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-    JobsRepository: IJobsRepository,
-    PdfGenerator: IPdfGenerator,
+    PlaylistRepository: IPlaylistRepository + 'static,
+    SpotifyClient: ISpotifyClient + 'static,
+    JobsRepository: IJobsRepository + 'static,
+    PdfGenerator: IPdfGenerator + 'static,
 {
     pub fn new(
         playlist_repository: Arc<PlaylistRepository>,
         spotify_client: Arc<SpotifyClient>,
         jobs_repository: Arc<JobsRepository>,
-        pdf_generator: Arc<PdfGenerator>,
+        pdf_worker: Arc<worker::Worker<JobsRepository, worker::GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>>>,
+        refetch_worker: Arc<worker::Worker<JobsRepository, worker::RefetchPlaylistTask<PlaylistRepository, SpotifyClient>>>,
     ) -> Self {
         Self {
             spotify_client,
             playlist_repository,
             jobs_repository,
-            pdf_generator,
+            pdf_worker,
+            refetch_worker,
         }
     }
 }
@@ -53,10 +56,10 @@ where
 impl<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator> IPlaylistService
     for PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
 where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-    JobsRepository: IJobsRepository,
-    PdfGenerator: IPdfGenerator,
+    PlaylistRepository: IPlaylistRepository + 'static,
+    SpotifyClient: ISpotifyClient + 'static,
+    JobsRepository: IJobsRepository + 'static,
+    PdfGenerator: IPdfGenerator + 'static,
 {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>> {
         if let Some(existing) = self.playlist_repository.get_by_spotify_id(id).await? {
@@ -95,46 +98,9 @@ where
             }
         };
 
-        // Create a job for PDF generation
-        let job = Job::new(
-            JobKind::GeneratePdfs,
-            serde_json::json!({"playlist_id": id.to_string()}),
-        );
-
-        // Save the job to the database
-        let job = self.jobs_repository.create(job).await?;
-
-        // In a real implementation, this would be handled by a background worker
-        // For now, we'll generate the PDFs synchronously
-        let front_pdf_data = self.pdf_generator.generate_front_cards(&playlist).await?;
-        let back_pdf_data = self.pdf_generator.generate_back_cards(&playlist).await?;
+        let task = worker::GeneratePlaylistPdfsTask::new(playlist.id);
         
-        // Create output directory if it doesn't exist
-        let output_dir = std::path::PathBuf::from("generated_pdfs");
-        tokio::fs::create_dir_all(&output_dir).await?;
-        
-        let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-        let base_filename = format!("{}_{}", playlist.id, timestamp);
-        
-        let front_path = output_dir.join(format!("{}_front.pdf", base_filename));
-        let back_path = output_dir.join(format!("{}_back.pdf", base_filename));
-        
-        tokio::fs::write(&front_path, front_pdf_data).await?;
-        tokio::fs::write(&back_path, back_pdf_data).await?;
-
-        // Update the job with the results
-        let mut completed_job = job.clone();
-        completed_job.status = JobStatus::Completed;
-        completed_job.completed_at = Some(chrono::Utc::now());
-        completed_job.payload = serde_json::json!({
-            "playlist_id": id.to_string(),
-            "front_path": front_path,
-            "back_path": back_path
-        });
-
-        self.jobs_repository.update(completed_job).await?;
-
-        info!("Generated PDFs for playlist {}: {}, {}", id, front_path.display(), back_path.display());
+        let job = self.pdf_worker.enqueue(task).await?;
 
         Ok(job)
     }
@@ -143,92 +109,19 @@ where
         // Look for completed PDF generation jobs for this playlist
         let jobs = self.jobs_repository.get_by_playlist_id(id).await?;
         
-        let latest_job = jobs.into_iter()
-            .filter(|job| job.status == JobStatus::Completed && job.kind == JobKind::GeneratePdfs)
-            .max_by_key(|job| job.completed_at);
-
-        match latest_job {
-            Some(job) => {
-                let front_path = job.payload["front_path"].as_str().unwrap_or("");
-                let back_path = job.payload["back_path"].as_str().unwrap_or("");
-                
-                let front_pdf = tokio::fs::read(front_path).await?;
-                let back_pdf = tokio::fs::read(back_path).await?;
-                
-                Ok([
-                    Pdf::new(front_pdf),
-                    Pdf::new(back_pdf),
-                ])
-            }
-            None => {
-                anyhow::bail!("No PDFs found for playlist {}", id);
-            }
-        }
+        todo!()
     }
 
     async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<Job> {
-        // Get the current playlist to preserve its ID and get Spotify ID
-        let current_playlist = match self.playlist_repository.get(id).await? {
+        let playlist = match self.playlist_repository.get(id).await? {
             Some(playlist) => playlist,
             None => {
                 anyhow::bail!("Playlist with ID {} not found", id);
             }
         };
-
-        // Get the Spotify ID from the current playlist
-        let spotify_id = match current_playlist.spotify_id.clone() {
-            Some(spotify_id) => spotify_id,
-            None => {
-                anyhow::bail!("Playlist {} has no associated Spotify ID", id);
-            }
-        };
-
-        // Create a job for playlist refetching
-        let job = Job::new(
-            JobKind::RefetchPlaylist,
-            serde_json::json!({"playlist_id": id.to_string()}),
-        );
-
-        // Save the job to the database
-        let job = self.jobs_repository.create(job).await?;
-
-        // Fetch fresh data from Spotify
-        let fresh_playlist = match self.spotify_client.get_playlist(&spotify_id).await? {
-            Some(playlist) => playlist,
-            None => {
-                anyhow::bail!(
-                    "Playlist with Spotify ID {} not found in Spotify",
-                    spotify_id
-                );
-            }
-        };
-
-        // Create an updated playlist with the fresh data but preserve the original ID
-        let mut updated_playlist = fresh_playlist;
-        updated_playlist.id = current_playlist.id;
-        updated_playlist.spotify_id = current_playlist.spotify_id;
-        updated_playlist.created_at = current_playlist.created_at;
-        updated_playlist.updated_at = Some(chrono::Utc::now());
-
-        // Update the playlist in the repository
-        self.playlist_repository.update(&updated_playlist).await?;
-
-        // Update the job with completion status
-        let mut completed_job = job.clone();
-        completed_job.status = JobStatus::Completed;
-        completed_job.completed_at = Some(chrono::Utc::now());
-        completed_job.payload = serde_json::json!({
-            "playlist_id": id.to_string(),
-            "tracks_count": updated_playlist.tracks.len(),
-            "message": "Playlist refetched successfully"
-        });
-
-        self.jobs_repository.update(completed_job).await?;
-
-        info!(
-            "Refetched playlist {} (Spotify ID: {}) with {} tracks",
-            id, spotify_id, updated_playlist.tracks.len()
-        );
+        
+        let task = worker::RefetchPlaylistTask::new(playlist.id);
+        let job = self.refetch_worker.enqueue(task).await?;
 
         Ok(job)
     }

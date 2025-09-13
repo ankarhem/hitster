@@ -1,5 +1,4 @@
 use displaydoc::Display;
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -53,39 +52,25 @@ pub enum JobStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum JobKind {
-    GeneratePdfs,
-    RefetchPlaylist,
-}
-
 #[derive(Debug, Clone)]
 pub struct Job {
     pub id: JobId,
     pub status: JobStatus,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub kind: JobKind,
     pub payload: serde_json::Value,
+    pub result: Option<serde_json::Value>,
 }
 
 impl Job {
-    pub fn new(kind: JobKind, payload: serde_json::Value) -> Self {
+    pub fn new(payload: serde_json::Value) -> Self {
         Self {
             id: JobId::new(),
             status: JobStatus::Pending,
             created_at: chrono::Utc::now(),
             completed_at: None,
-            kind,
             payload,
+            result: None,
         }
     }
-}
-
-pub trait BackgroundTask: Serialize + for<'de> Deserialize<'de> {
-    type State;
-
-    fn kind(&self) -> String;
-
-    fn run(&self, state: &Self::State) -> impl Future<Output = anyhow::Result<()>> + Send;
 }

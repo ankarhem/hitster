@@ -1,6 +1,7 @@
 //! Application layer
 
 pub mod interfaces;
+pub mod worker;
 pub mod pdf_generator;
 pub mod playlist_service;
 

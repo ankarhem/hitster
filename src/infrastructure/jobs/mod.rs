@@ -20,13 +20,13 @@ impl IJobsRepository for JobsRepository {
         let entity: JobEntity = job.clone().into();
 
         sqlx::query(
-            "INSERT INTO jobs (id, status, created_at, kind, payload) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO jobs (id, status, created_at, payload, result) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(entity.id)
         .bind(entity.status)
         .bind(entity.created_at)
-        .bind(entity.kind)
         .bind(entity.payload)
+        .bind(entity.result)
         .execute(&self.pool)
         .await?;
 
@@ -49,12 +49,12 @@ impl IJobsRepository for JobsRepository {
         let entity: JobEntity = job.clone().into();
 
         sqlx::query(
-            "UPDATE jobs SET status = ?, completed_at = ?, kind = ?, payload = ? WHERE id = ?",
+            "UPDATE jobs SET status = ?, completed_at = ?, payload = ?, result = ? WHERE id = ?",
         )
         .bind(entity.status)
         .bind(entity.completed_at)
-        .bind(entity.kind)
         .bind(entity.payload)
+        .bind(entity.result)
         .bind(entity.id)
         .execute(&self.pool)
         .await?;
