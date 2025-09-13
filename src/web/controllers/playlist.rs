@@ -93,10 +93,7 @@ where
                     .map_err(|_| anyhow!("Failed to render playlist template"))?;
                 Ok((headers, Html(html)).into_response())
             }
-            (None, _) => Err(ApiError::NotFound),
-            _ => Err(ApiError::Internal(anyhow!(
-                "Failed to start playlist fetch job"
-            ))),
+            (None, _) => Err(ApiError::NotFound)
         };
     }
 
@@ -219,7 +216,7 @@ pub async fn get_job_status<PlaylistService>(
 where
     PlaylistService: IPlaylistService + Send + Sync + 'static,
 {
-    let playlist_id: PlaylistId = playlist_id.parse().unwrap();
+    let _playlist_id: PlaylistId = playlist_id.parse().unwrap();
     let job_id: JobId = job_id.parse().unwrap();
 
     let stream = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
