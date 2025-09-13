@@ -73,21 +73,34 @@ where
 
             while let Some((mut job, task)) = task_receiver.recv().await {
                 job.status = crate::domain::JobStatus::Processing;
-                jobs_repository.update(job.clone()).await.unwrap();
+                if let Err(e) = jobs_repository.update(job.clone()).await {
+                    error!("Failed to update job status to processing: {:?}", e);
+                    continue;
+                }
 
                 let result = task.run(&state).await;
                 match result {
                     Ok(output) => {
                         job.status = crate::domain::JobStatus::Completed;
                         job.completed_at = Some(chrono::Utc::now());
-                        job.result = Some(serde_json::to_value(output).unwrap());
-                        jobs_repository.update(job).await.unwrap();
+                        match serde_json::to_value(output) {
+                            Ok(output_value) => job.result = Some(output_value),
+                            Err(e) => {
+                                error!("Failed to serialize task output: {:?}", e);
+                                job.status = crate::domain::JobStatus::Failed;
+                            }
+                        }
+                        if let Err(e) = jobs_repository.update(job.clone()).await {
+                            error!("Failed to update completed job: {:?}", e);
+                        }
                     }
                     Err(e) => {
                         error!("Task failed to complete: {:?}", e);
                         job.status = crate::domain::JobStatus::Failed;
                         job.completed_at = Some(chrono::Utc::now());
-                        jobs_repository.update(job).await.unwrap();
+                        if let Err(e) = jobs_repository.update(job.clone()).await {
+                            error!("Failed to update failed job: {:?}", e);
+                        }
                     }
                 }
             }
