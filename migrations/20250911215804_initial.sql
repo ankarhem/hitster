@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME,
-    kind TEXT NOT NULL CHECK (kind IN ('generate_pdfs', 'refetch_playlist')),
-    payload TEXT NOT NULL DEFAULT '{}'
+    payload TEXT NOT NULL DEFAULT '{}',
+    result TEXT
 );
 
 -- Create indexes for better performance
@@ -35,7 +35,6 @@ CREATE INDEX IF NOT EXISTS idx_playlists_created_at ON playlists(created_at);
 CREATE INDEX IF NOT EXISTS idx_tracks_playlist_id ON tracks(playlist_id);
 CREATE INDEX IF NOT EXISTS idx_tracks_position ON tracks(position);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
-CREATE INDEX IF NOT EXISTS idx_jobs_kind ON jobs(kind);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
 CREATE INDEX IF NOT EXISTS idx_jobs_payload_playlist_id ON jobs(json_extract(payload, '$.playlist_id'));
 
