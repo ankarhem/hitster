@@ -120,9 +120,9 @@ impl IPdfGenerator for PdfGenerator {
             let page_width = page.width();
             let page_height = page.height();
             
-            // 4 columns, 6 rows
-            let cols = 4;
-            let rows = 6;
+            // 3 columns, 4 rows
+            let cols = 3;
+            let rows = 4;
 
             let card_width = page_width / cols as f64;
             let card_height = page_height / rows as f64;

@@ -120,7 +120,8 @@
                                     <button
                                             id="download-front-btn"
                                             type="submit"
-                                            {% if self.has_job_in_progress() %}
+                                            {% if !self.enable_download_buttons() %}
+
                                                 disabled
                                             {% endif %}
                                             class="w-full bg-green-500 hover:bg-green-600 disabled:bg-neutral-800 disabled:text-neutral-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
@@ -142,8 +143,8 @@
                                     <button
                                             id="download-back-btn"
                                             type="submit"
-                                            {% if self.has_job_in_progress() %}
-                                                disabled
+                                            {% if !self.enable_download_buttons() %}
+                                            disabled
                                             {% endif %}
                                             class="w-full bg-green-500 hover:bg-green-600 disabled:bg-neutral-800 disabled:text-neutral-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
                                     >
