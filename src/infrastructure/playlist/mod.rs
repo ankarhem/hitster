@@ -100,15 +100,14 @@ impl IPlaylistRepository for PlaylistRepository {
     }
 
     async fn get_jobs(&self, playlist_id: &PlaylistId) -> anyhow::Result<Option<Vec<Job>>> {
+        let playlist_id_str = playlist_id.to_string();
+        
         let job_entities = sqlx::query_as::<_, JobEntity>(
-            r#"
-            SELECT id, playlist_id, status, front_pdf_path, back_pdf_path, created_at, completed_at
-            FROM jobs 
-            WHERE playlist_id = ?
-            ORDER BY created_at DESC
-            "#,
+            "SELECT id, status, created_at, completed_at, payload, result FROM jobs 
+             WHERE json_extract(payload, '$.playlist_id') = ? 
+             ORDER BY created_at DESC",
         )
-        .bind(Uuid::from(playlist_id.clone()))
+        .bind(playlist_id_str)
         .fetch_all(&self.pool)
         .await?;
 

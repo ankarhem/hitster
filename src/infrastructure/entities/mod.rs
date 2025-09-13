@@ -46,14 +46,6 @@ pub enum JobStatusEntity {
     Failed,
 }
 
-#[derive(Debug, Clone, sqlx::Type)]
-#[sqlx(type_name = "text")]
-pub enum JobKindEntity {
-    #[sqlx(rename = "generate_pdfs")]
-    GeneratePdfs,
-    #[sqlx(rename = "refetch_playlist")]
-    RefetchPlaylist,
-}
 
 impl From<PlaylistEntity> for domain::Playlist {
     fn from(entity: PlaylistEntity) -> Self {

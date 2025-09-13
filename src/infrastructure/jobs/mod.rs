@@ -36,7 +36,7 @@ impl IJobsRepository for JobsRepository {
     async fn get(&self, id: &domain::JobId) -> anyhow::Result<Option<domain::Job>> {
         let id: Uuid = id.clone().into();
         let job_entity = sqlx::query_as::<_, JobEntity>(
-            "SELECT id, status, created_at, completed_at, kind, payload FROM jobs WHERE id = ?",
+            "SELECT id, status, created_at, completed_at, payload, result FROM jobs WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -66,7 +66,7 @@ impl IJobsRepository for JobsRepository {
         let playlist_id_str = playlist_id.to_string();
         
         let job_entities = sqlx::query_as::<_, JobEntity>(
-            "SELECT id, status, created_at, completed_at, kind, payload FROM jobs 
+            "SELECT id, status, created_at, completed_at, payload, result FROM jobs 
              WHERE json_extract(payload, '$.playlist_id') = ? 
              ORDER BY created_at DESC",
         )
