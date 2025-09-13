@@ -1,4 +1,5 @@
 use crate::application::playlist_service::IPlaylistService;
+use crate::domain::PlaylistId;
 use crate::web::error::TemplateError;
 use crate::web::server::Services;
 use crate::web::templates::playlist::{JobVM, TrackVM};
@@ -8,8 +9,6 @@ use axum::{
     extract::{Path, State},
     response::Html,
 };
-use crate::application::worker::GeneratePlaylistPdfsResult;
-use crate::domain::PlaylistId;
 
 pub async fn index() -> Result<Html<String>, TemplateError> {
     let template = IndexTemplate {
@@ -27,7 +26,10 @@ where
 {
     let playlist_id: PlaylistId = playlist_id.parse()?;
     let playlist = match server.playlist_service.get_playlist(&playlist_id).await? {
-        None => Err(TemplateError::NotFound(format!("Playlist with id {} not found", playlist_id)))?,
+        None => Err(TemplateError::NotFound(format!(
+            "Playlist with id {} not found",
+            playlist_id
+        )))?,
         Some(p) => p,
     };
 
@@ -64,7 +66,12 @@ where
         is_in_progress: job.status != crate::domain::JobStatus::Completed,
     });
 
-    let has_pdfs = server.playlist_service.get_playlist_pdfs(&playlist_id).await.ok().is_some();
+    let has_pdfs = server
+        .playlist_service
+        .get_playlist_pdfs(&playlist_id)
+        .await
+        .ok()
+        .is_some();
     let template = PlaylistTemplate {
         title: playlist.name.clone(),
         total_tracks,

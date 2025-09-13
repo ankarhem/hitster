@@ -1,9 +1,9 @@
 //! Application layer
 
 pub mod interfaces;
-pub mod worker;
 pub mod pdf_generator;
 pub mod playlist_service;
+pub mod worker;
 
 pub use interfaces::*;
 pub use pdf_generator::{IPdfGenerator, PdfGenerator};

@@ -1,26 +1,26 @@
-use std::time::Duration;
-use anyhow::anyhow;
-use askama::Template;
+use crate::PlaylistTemplate;
 use crate::application::playlist_service::IPlaylistService;
 use crate::domain::spotify_id::SpotifyId;
+use crate::domain::{JobId, JobStatus, PlaylistId};
 use crate::web::error::ApiError;
+use crate::web::extensions::HtmxExtension;
 use crate::web::server::Services;
+use anyhow::anyhow;
+use askama::Template;
+use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
+use axum::http::{HeaderMap, HeaderValue};
+use axum::response::sse::{Event, KeepAlive};
+use axum::response::{IntoResponse, Response, Sse};
 use axum::{
     Form,
     extract::{Path, State},
     response::{Html, Json, Redirect},
 };
-use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
-use axum::http::{HeaderMap, HeaderValue};
-use axum::response::{IntoResponse, Response, Sse};
-use axum::response::sse::{Event, KeepAlive};
-use tokio_stream::{StreamExt};
 use futures_util::{self, Stream};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use tokio_stream::StreamExt;
 use uuid::Uuid;
-use crate::domain::{JobId, JobStatus, PlaylistId};
-use crate::PlaylistTemplate;
-use crate::web::extensions::HtmxExtension;
 
 const MAX_PLAYLIST_ID_LENGTH: usize = 200;
 const MIN_PLAYLIST_ID_LENGTH: usize = 16; // Spotify IDs are typically 22 characters
@@ -60,16 +60,20 @@ where
     }
 
     // Parse the Spotify ID (this will do additional format validation)
-    let spotify_id = SpotifyId::parse(&input)
-        .map_err(|e| ApiError::ValidationError(format!("Invalid Spotify playlist format: {}", e)))?;
+    let spotify_id = SpotifyId::parse(input).map_err(|e| {
+        ApiError::ValidationError(format!("Invalid Spotify playlist format: {}", e))
+    })?;
 
     if headers.is_htmx_request() {
-        let (playlist, job) = services.playlist_service.create_partial_playlist_from_spotify(&spotify_id).await?;
+        let (playlist, job) = services
+            .playlist_service
+            .create_partial_playlist_from_spotify(&spotify_id)
+            .await?;
         return match (playlist, job) {
             (Some(playlist), None) => {
                 let location = format!("/playlist/{}", &playlist.id);
-                return Ok(Redirect::to(&location).into_response())
-            },
+                return Ok(Redirect::to(&location).into_response());
+            }
             (Some(playlist), Some(job)) => {
                 let location = format!("/playlist/{}", &playlist.id);
 
@@ -84,14 +88,16 @@ where
                 let mut headers = HeaderMap::new();
                 headers.insert("HX-Replace-Url", HeaderValue::from_str(&location).unwrap());
 
-                let html = template.render().map_err(|_| anyhow!("Failed to render playlist template"))?;
+                let html = template
+                    .render()
+                    .map_err(|_| anyhow!("Failed to render playlist template"))?;
                 Ok((headers, Html(html)).into_response())
-            },
-            (None, _) => Err(ApiError::NotFound),
-            _ => {
-                Err(ApiError::Internal(anyhow!("Failed to start playlist fetch job")))
             }
-        }
+            (None, _) => Err(ApiError::NotFound),
+            _ => Err(ApiError::Internal(anyhow!(
+                "Failed to start playlist fetch job"
+            ))),
+        };
     }
 
     let playlist = services
@@ -126,12 +132,13 @@ where
         let redirect_to = format!("/playlist/{}", playlist_id);
         let mut headers = HeaderMap::new();
         headers.insert("HX-Redirect", HeaderValue::from_str(&redirect_to).unwrap());
-        return Ok((headers, axum::body::Body::empty()).into_response())
+        return Ok((headers, axum::body::Body::empty()).into_response());
     }
 
     Ok(Json(JobResponse {
         job_id: job.id.into(),
-    }).into_response())
+    })
+    .into_response())
 }
 
 pub async fn generate_pdfs<PlaylistService>(
@@ -153,14 +160,13 @@ where
         let redirect_to = format!("/playlist/{}", playlist_id);
         let mut headers = HeaderMap::new();
         headers.insert("HX-Redirect", HeaderValue::from_str(&redirect_to).unwrap());
-        return Ok((headers, axum::body::Body::empty()).into_response())
+        return Ok((headers, axum::body::Body::empty()).into_response());
     }
 
-    Ok(
-        Json(JobResponse {
-            job_id: job.id.into(),
-        }).into_response()
-    )
+    Ok(Json(JobResponse {
+        job_id: job.id.into(),
+    })
+    .into_response())
 }
 
 pub async fn download_pdf<PlaylistService>(
@@ -174,11 +180,16 @@ where
 
     // Validate PDF type
     if pdf_side != "front" && pdf_side != "back" {
-        return Err(ApiError::ValidationError("Invalid PDF type. Must be 'front' or 'back'".to_string()));
+        return Err(ApiError::ValidationError(
+            "Invalid PDF type. Must be 'front' or 'back'".to_string(),
+        ));
     }
 
     // Get the PDFs from the service
-    let pdfs = services.playlist_service.get_playlist_pdfs(&playlist_id).await?;
+    let pdfs = services
+        .playlist_service
+        .get_playlist_pdfs(&playlist_id)
+        .await?;
 
     let pdf_data = match pdf_side.as_str() {
         "front" => pdfs[0].clone(),
@@ -191,10 +202,14 @@ where
     Ok((
         [
             (CONTENT_TYPE, HeaderValue::from_static("application/pdf")),
-            (CONTENT_DISPOSITION, HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename)).unwrap()),
+            (
+                CONTENT_DISPOSITION,
+                HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename)).unwrap(),
+            ),
         ],
         Vec::<u8>::from(pdf_data), // Convert Pdf to Vec<u8>
-    ).into_response())
+    )
+        .into_response())
 }
 
 pub async fn get_job_status<PlaylistService>(
@@ -207,23 +222,24 @@ where
     let playlist_id: PlaylistId = playlist_id.parse().unwrap();
     let job_id: JobId = job_id.parse().unwrap();
 
-    let stream =
-        tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(Duration::from_millis(200)))
-            .then(move |_| {
-                let job_id = job_id.clone();
-                let playlist_service = services.playlist_service.clone();
-                async move {
-                    let job = playlist_service.get_job_by_id(&job_id).await?;
+    let stream = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
+        Duration::from_millis(200),
+    ))
+    .then(move |_| {
+        let job_id = job_id.clone();
+        let playlist_service = services.playlist_service.clone();
+        async move {
+            let job = playlist_service.get_job_by_id(&job_id).await?;
 
-                    match job {
-                        Some(ref j) if j.status == JobStatus::Completed => {
-                            Ok(Event::default().event("done").data("completed"))
-                        },
-                        Some(ref j) => Ok(Event::default().event("status").data(j.status.to_string())),
-                        None => Err(ApiError::NotFound),
-                    }
+            match job {
+                Some(ref j) if j.status == JobStatus::Completed => {
+                    Ok(Event::default().event("done").data("completed"))
                 }
-            });
+                Some(ref j) => Ok(Event::default().event("status").data(j.status.to_string())),
+                None => Err(ApiError::NotFound),
+            }
+        }
+    });
 
     Sse::new(stream).keep_alive(KeepAlive::default())
 }

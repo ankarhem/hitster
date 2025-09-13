@@ -1,10 +1,10 @@
-use std::path::PathBuf;
 use crate::application::worker::IWorkerTask;
 use crate::application::{IPdfGenerator, IPlaylistRepository, ISpotifyClient};
+use crate::domain::PlaylistId;
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
-use crate::domain::PlaylistId;
 
 #[derive(Serialize, Deserialize)]
 pub struct GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>
@@ -96,7 +96,6 @@ where
     }
 }
 
-
 #[derive(Serialize, Deserialize)]
 pub struct RefetchPlaylistTask<PlaylistRepository, SpotifyClient>
 where
@@ -130,7 +129,7 @@ where
 }
 
 impl<PlaylistRepository, SpotifyClient> Clone
-for RefetchPlaylistState<PlaylistRepository, SpotifyClient>
+    for RefetchPlaylistState<PlaylistRepository, SpotifyClient>
 where
     PlaylistRepository: IPlaylistRepository,
     SpotifyClient: ISpotifyClient,
@@ -144,7 +143,7 @@ where
 }
 
 impl<PlaylistRepository, SpotifyClient> IWorkerTask
-for RefetchPlaylistTask<PlaylistRepository, SpotifyClient>
+    for RefetchPlaylistTask<PlaylistRepository, SpotifyClient>
 where
     PlaylistRepository: IPlaylistRepository,
     SpotifyClient: ISpotifyClient,
@@ -164,12 +163,19 @@ where
         let spotify_id = match current_playlist.spotify_id.clone() {
             Some(spotify_id) => spotify_id,
             None => {
-                anyhow::bail!("Playlist {} has no associated Spotify ID", &self.playlist_id);
+                anyhow::bail!(
+                    "Playlist {} has no associated Spotify ID",
+                    &self.playlist_id
+                );
             }
         };
 
         // Fetch fresh data from Spotify
-        let fresh_playlist = match state.spotify_client.get_playlist_with_tracks(&spotify_id).await? {
+        let fresh_playlist = match state
+            .spotify_client
+            .get_playlist_with_tracks(&spotify_id)
+            .await?
+        {
             Some(playlist) => playlist,
             None => {
                 anyhow::bail!(
@@ -188,7 +194,7 @@ where
 
         // Update the playlist in the repository
         state.playlist_repository.update(&updated_playlist).await?;
-        
+
         Ok(())
     }
 }

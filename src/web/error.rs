@@ -1,15 +1,15 @@
+use crate::domain::SpotifyIdParserError;
 use crate::web::templates::ErrorTemplate;
 use askama::Template;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use crate::domain::SpotifyIdParserError;
 
 /// Error type for handling errors in view rendering
 #[derive(Debug, displaydoc::Display, thiserror::Error)]
 pub enum TemplateError {
     /// Not found
     NotFound(String),
-    
+
     /// Template rendering error: {0}
     RenderError(#[from] askama::Error),
     ///  error: {0}
@@ -21,7 +21,7 @@ pub enum TemplateError {
 impl IntoResponse for TemplateError {
     fn into_response(self) -> Response {
         let mut details = "Something went wrong. Please try again later.".to_string();
-        
+
         let status = match self {
             TemplateError::NotFound(message) => {
                 tracing::info!("Not Found: {}", message);
@@ -85,20 +85,19 @@ impl From<SpotifyIdParserError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-
         let status = match &self {
             ApiError::Internal(_) => {
                 tracing::error!("{}", self);
                 StatusCode::INTERNAL_SERVER_ERROR
-            },
+            }
             ApiError::ValidationError(_) => {
                 tracing::info!("{}", self);
                 StatusCode::BAD_REQUEST
-            },
+            }
             ApiError::NotFound => {
                 tracing::info!("{}", self);
                 StatusCode::NOT_FOUND
-            },
+            }
         };
 
         (status, self.to_string()).into_response()

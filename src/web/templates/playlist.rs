@@ -13,7 +13,7 @@ impl TrackVM {
     pub fn has_album_cover(&self) -> bool {
         self.album_cover_url.is_some()
     }
-    
+
     pub fn album_cover_url_or_empty(&self) -> &str {
         self.album_cover_url.as_deref().unwrap_or("")
     }

@@ -62,9 +62,12 @@ impl IJobsRepository for JobsRepository {
         Ok(job)
     }
 
-    async fn get_by_playlist_id(&self, playlist_id: &crate::domain::PlaylistId) -> anyhow::Result<Vec<domain::Job>> {
+    async fn get_by_playlist_id(
+        &self,
+        playlist_id: &crate::domain::PlaylistId,
+    ) -> anyhow::Result<Vec<domain::Job>> {
         let playlist_id_str = playlist_id.to_string();
-        
+
         let job_entities = sqlx::query_as::<_, JobEntity>(
             "SELECT id, status, created_at, completed_at, payload, result FROM jobs 
              WHERE json_extract(payload, '$.playlist_id') = ? 

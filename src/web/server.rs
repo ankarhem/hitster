@@ -1,8 +1,8 @@
 use crate::application::playlist_service::IPlaylistService;
 use crate::web::controllers;
 use axum::{
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
 use std::sync::Arc;
 use tracing::info;
@@ -58,16 +58,13 @@ where
             "/api/playlist/{playlist_id}/jobs/{job_id}/status",
             get(controllers::playlist::get_job_status),
         )
-
         // View endpoints
         .route("/", get(controllers::view::index))
         .route(
             "/playlist/{playlist_id}",
             get(controllers::view::view_playlist),
         )
-
         .with_state(services);
-
 
     let addr = format!("{}:{}", host, port);
     info!("Listening on {}", addr);

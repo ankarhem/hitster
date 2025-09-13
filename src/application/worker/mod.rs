@@ -2,14 +2,14 @@ mod tasks;
 
 pub use tasks::*;
 
+use crate::application::interfaces::IJobsRepository;
+use crate::domain::job::Job;
 use anyhow::Result;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::{UnboundedSender};
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
-use crate::application::interfaces::{IJobsRepository};
-use crate::domain::job::{Job};
 
 #[trait_variant::make(IWorkerTask: Send)]
 pub trait _IWorkerTask: Serialize + for<'de> Deserialize<'de> {
@@ -59,10 +59,7 @@ where
     JobsRepository: IJobsRepository + 'static,
     WorkerTask: IWorkerTask + 'static,
 {
-    pub fn new(
-        jobs_repository: Arc<JobsRepository>,
-        state: Arc<WorkerTask::State>,
-    ) -> Self {
+    pub fn new(jobs_repository: Arc<JobsRepository>, state: Arc<WorkerTask::State>) -> Self {
         let (task_sender, mut task_receiver) = mpsc::unbounded_channel::<(Job, WorkerTask)>();
 
         let _state = state.clone();
@@ -109,7 +106,7 @@ where
         Self {
             jobs_repository,
             // state,
-            task_sender
+            task_sender,
         }
     }
 }

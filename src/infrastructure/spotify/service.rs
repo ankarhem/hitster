@@ -63,7 +63,7 @@ impl ISpotifyClient for SpotifyClient {
             updated_at: None,
         }))
     }
-    
+
     #[instrument(skip(self), fields(id = %id))]
     async fn get_playlist(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
         let spotify_id = id.to_string();
@@ -94,7 +94,8 @@ mod conversions {
         type Error = anyhow::Error;
 
         fn try_from(value: FullTrack) -> Result<Self> {
-            let artist_names = value.artists
+            let artist_names = value
+                .artists
                 .iter()
                 .map(|artist| artist.name.clone())
                 .collect::<Vec<String>>()

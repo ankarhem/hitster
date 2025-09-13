@@ -53,8 +53,7 @@ impl Settings {
         let database_url = match std::env::var("DATABASE_URL") {
             Ok(url) => url,
             Err(_) => {
-                let current_dir = std::env::current_dir()
-                    .map_err(|e| ConfigError::Io(e))?;
+                let current_dir = std::env::current_dir().map_err(ConfigError::Io)?;
                 current_dir
                     .join("sqlite://./db/hitster.db")
                     .to_string_lossy()
@@ -72,11 +71,11 @@ impl Settings {
         let port = std::env::var("HITSTER_PORT")
             .map(|s| s.parse().unwrap_or(3000))
             .unwrap_or(3000);
-        
+
         let db_pool_max_connections = std::env::var("DATABASE_POOL_MAX_CONNECTIONS")
             .map(|s| s.parse().unwrap_or(10))
             .unwrap_or(10);
-        
+
         let db_pool_timeout_seconds = std::env::var("DATABASE_POOL_TIMEOUT_SECONDS")
             .map(|s| s.parse().unwrap_or(30))
             .unwrap_or(30);

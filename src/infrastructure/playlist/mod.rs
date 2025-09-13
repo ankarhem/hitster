@@ -102,7 +102,7 @@ impl IPlaylistRepository for PlaylistRepository {
 
     async fn get_jobs(&self, playlist_id: &PlaylistId) -> anyhow::Result<Option<Vec<Job>>> {
         let playlist_id_str = playlist_id.to_string();
-        
+
         let job_entities = sqlx::query_as::<_, JobEntity>(
             "SELECT id, status, created_at, completed_at, payload, result FROM jobs 
              WHERE json_extract(payload, '$.playlist_id') = ? 
@@ -140,12 +140,9 @@ impl IPlaylistRepository for PlaylistRepository {
         .await?;
 
         // Delete existing tracks (we'll reinsert them)
-        sqlx::query!(
-            "DELETE FROM tracks WHERE playlist_id = ?",
-            playlist_id_uuid
-        )
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query!("DELETE FROM tracks WHERE playlist_id = ?", playlist_id_uuid)
+            .execute(&mut *tx)
+            .await?;
 
         // Insert updated tracks
         for (position, track) in playlist.tracks.iter().enumerate() {

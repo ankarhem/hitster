@@ -47,7 +47,6 @@ pub enum JobStatusEntity {
     Failed,
 }
 
-
 impl From<PlaylistEntity> for domain::Playlist {
     fn from(entity: PlaylistEntity) -> Self {
         Self {
@@ -137,7 +136,7 @@ impl From<domain::JobStatus> for JobStatusEntity {
 impl From<domain::Track> for TrackEntity {
     fn from(track: domain::Track) -> Self {
         Self {
-            id: Uuid::new_v4(), // Will be set when saving to database
+            id: Uuid::new_v4(),       // Will be set when saving to database
             playlist_id: Uuid::nil(), // Will be set when saving to database
             title: track.title,
             artist: track.artist,
