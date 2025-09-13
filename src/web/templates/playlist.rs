@@ -70,16 +70,3 @@ impl PlaylistTemplate {
         }
     }
 }
-
-impl PlaylistTemplate {
-    fn partial_from(playlist: &domain::Playlist) -> Self {
-        Self {
-            title: playlist.name.clone(),
-            total_tracks: playlist.tracks.len(),
-            tracks: vec![],
-            playlist_id: "".to_string(),
-            latest_job: None,
-            has_generated_pdfs: false,
-        }
-    }
-}
