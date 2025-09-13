@@ -7,6 +7,7 @@ use crate::application::worker::{GeneratePlaylistPdfsResult, IWorker};
 #[trait_variant::make(IPlaylistService: Send)]
 pub trait _IPlaylistService: Send + Sync {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>>;
+    async fn create_partial_playlist_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<(Option<Playlist>, Option<Job>)>;
     async fn get_playlist(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>>;
     async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job>;
     async fn get_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<[Pdf; 2]>;
@@ -72,7 +73,7 @@ where
             return Ok(Some(existing));
         }
 
-        let playlist = match self.spotify_client.get_playlist(id).await? {
+        let playlist = match self.spotify_client.get_playlist_with_tracks(id).await? {
             Some(p) => p,
             None => {
                 info!("Playlist with Spotify ID {} not found", id);
@@ -86,6 +87,29 @@ where
             created.id, id
         );
         Ok(Some(created))
+    }
+    
+    async fn create_partial_playlist_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<(Option<Playlist>, Option<Job>)> {
+        if let Some(existing) = self.playlist_repository.get_by_spotify_id(id).await? {
+            info!(
+                "Playlist with Spotify ID {} already exists with ID {}",
+                id, existing.id
+            );
+            return Ok((Some(existing), None));
+        }
+
+        let playlist = match self.spotify_client.get_playlist(id).await? {
+            Some(p) => p,
+            None => {
+                info!("Playlist with Spotify ID {} not found", id);
+                return Ok((None, None));
+            }
+        };
+        let created = self.playlist_repository.create(&playlist).await?;
+
+        let job = IPlaylistService::refetch_playlist(self, &playlist.id).await?;
+        
+        Ok((Some(created), Some(job)))
     }
 
     async fn get_playlist(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>> {
@@ -148,7 +172,7 @@ where
 
     async fn get_job_by_id(&self, job_id: &JobId) -> anyhow::Result<Option<Job>> {
         let job = self.jobs_repository.get(job_id).await?;
-        
+
         Ok(job)
     }
 }

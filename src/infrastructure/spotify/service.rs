@@ -26,7 +26,7 @@ impl SpotifyClient {
 
 impl ISpotifyClient for SpotifyClient {
     #[instrument(skip(self), fields(id = %id))]
-    async fn get_playlist(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
+    async fn get_playlist_with_tracks(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
         let full_playlist = self
@@ -58,6 +58,25 @@ impl ISpotifyClient for SpotifyClient {
             id: PlaylistId::new()?,
             name: full_playlist.name,
             tracks,
+            spotify_id: Some(id.clone()),
+            created_at: None,
+            updated_at: None,
+        }))
+    }
+    
+    #[instrument(skip(self), fields(id = %id))]
+    async fn get_playlist(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
+        let spotify_id = id.to_string();
+        let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
+        let full_playlist = self
+            .client
+            .playlist(rspotify_playlist_id, None, None)
+            .await?;
+
+        Ok(Some(Playlist {
+            id: PlaylistId::new()?,
+            name: full_playlist.name,
+            tracks: Vec::new(),
             spotify_id: Some(id.clone()),
             created_at: None,
             updated_at: None,

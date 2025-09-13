@@ -1,3 +1,5 @@
+use crate::domain;
+
 #[derive(Debug)]
 pub struct TrackVM {
     pub title: String,
@@ -29,6 +31,15 @@ pub struct JobVM {
     pub is_in_progress: bool,
 }
 
+impl From<domain::Job> for JobVM {
+    fn from(job: domain::Job) -> Self {
+        Self {
+            id: job.id.to_string(),
+            is_in_progress: job.status != domain::JobStatus::Completed,
+        }
+    }
+}
+
 /// Template context for the cards page
 #[derive(askama::Template, Debug)]
 #[template(path = "playlist.html")]
@@ -56,6 +67,19 @@ impl PlaylistTemplate {
         match &self.latest_job {
             Some(job) => job.is_in_progress,
             None => false,
+        }
+    }
+}
+
+impl PlaylistTemplate {
+    fn partial_from(playlist: &domain::Playlist) -> Self {
+        Self {
+            title: playlist.name.clone(),
+            total_tracks: playlist.tracks.len(),
+            tracks: vec![],
+            playlist_id: "".to_string(),
+            latest_job: None,
+            has_generated_pdfs: false,
         }
     }
 }

@@ -1,5 +1,6 @@
-use std::convert::Infallible;
 use std::time::Duration;
+use anyhow::anyhow;
+use askama::Template;
 use crate::application::playlist_service::IPlaylistService;
 use crate::domain::spotify_id::SpotifyId;
 use crate::web::error::ApiError;
@@ -7,18 +8,18 @@ use crate::web::server::Services;
 use axum::{
     Form,
     extract::{Path, State},
-    response::{Json, Redirect},
+    response::{Html, Json, Redirect},
 };
 use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderMap, HeaderValue};
 use axum::response::{IntoResponse, Response, Sse};
 use axum::response::sse::{Event, KeepAlive};
-use tokio_stream::{self as stream, StreamExt};
+use tokio_stream::{StreamExt};
 use futures_util::{self, Stream};
-use futures_util::stream::repeat_with;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::domain::{JobId, JobStatus, PlaylistId};
+use crate::PlaylistTemplate;
 use crate::web::extensions::HtmxExtension;
 
 const MAX_PLAYLIST_ID_LENGTH: usize = 200;
@@ -38,9 +39,10 @@ pub struct JobResponse {
 }
 
 pub async fn create_playlist<PlaylistService>(
-    State(server): State<Services<PlaylistService>>,
+    headers: HeaderMap,
+    State(services): State<Services<PlaylistService>>,
     Form(form): Form<CreatePlaylistForm>,
-) -> Result<Redirect, ApiError>
+) -> Result<impl IntoResponse, ApiError>
 where
     PlaylistService: IPlaylistService,
 {
@@ -61,13 +63,45 @@ where
     let spotify_id = SpotifyId::parse(&input)
         .map_err(|e| ApiError::ValidationError(format!("Invalid Spotify playlist format: {}", e)))?;
 
-    let playlist = server
+    if headers.is_htmx_request() {
+        let (playlist, job) = services.playlist_service.create_partial_playlist_from_spotify(&spotify_id).await?;
+        return match (playlist, job) {
+            (Some(playlist), None) => {
+                let location = format!("/playlist/{}", &playlist.id);
+                return Ok(Redirect::to(&location).into_response())
+            },
+            (Some(playlist), Some(job)) => {
+                let location = format!("/playlist/{}", &playlist.id);
+
+                let template = PlaylistTemplate {
+                    title: playlist.name.clone(),
+                    total_tracks: playlist.tracks.len(),
+                    tracks: vec![],
+                    playlist_id: playlist.id.to_string(),
+                    latest_job: Some(job.into()),
+                    has_generated_pdfs: false,
+                };
+                let mut headers = HeaderMap::new();
+                headers.insert("HX-Replace-Url", HeaderValue::from_str(&location).unwrap());
+
+                let html = template.render().map_err(|_| anyhow!("Failed to render playlist template"))?;
+                Ok((headers, Html(html)).into_response())
+            },
+            (None, _) => Err(ApiError::NotFound),
+            _ => {
+                Err(ApiError::Internal(anyhow!("Failed to start playlist fetch job")))
+            }
+        }
+    }
+
+    let playlist = services
         .playlist_service
         .create_from_spotify(&spotify_id)
         .await?;
-    
+
     if let Some(playlist) = playlist {
-        Ok(Redirect::to(&format!("/playlist/{}", playlist.id)))
+        let location = format!("/playlist/{}", playlist.id);
+        Ok(Redirect::to(&location).into_response())
     } else {
         Err(ApiError::NotFound)
     }
@@ -86,7 +120,7 @@ where
         .playlist_service
         .refetch_playlist(&playlist_id)
         .await?;
-    
+
     // If the request is from HTMX reload the current page
     if headers.is_htmx_request() {
         let redirect_to = format!("/playlist/{}", playlist_id);

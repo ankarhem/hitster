@@ -13,7 +13,7 @@ tokio = { version = "1.47", features = ["full"] }
 tokio-stream = { version = "0.1" }
 
 # Web framework
-axum = "0.8"
+axum = { version = "0.8", features = ["macros"] }
 
 # Spotify API
 rspotify = { version = "0.15", features = ["client-reqwest", "reqwest-native-tls"] }

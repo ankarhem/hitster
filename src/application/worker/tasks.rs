@@ -169,7 +169,7 @@ where
         };
 
         // Fetch fresh data from Spotify
-        let fresh_playlist = match state.spotify_client.get_playlist(&spotify_id).await? {
+        let fresh_playlist = match state.spotify_client.get_playlist_with_tracks(&spotify_id).await? {
             Some(playlist) => playlist,
             None => {
                 anyhow::bail!(
