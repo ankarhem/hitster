@@ -53,6 +53,7 @@ where
                 artist: track.artist.clone(),
                 year: track.year,
                 qr_code: svg,
+                album_cover_url: track.album_cover_url.clone(),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;

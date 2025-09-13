@@ -76,7 +76,8 @@ where
 pub async fn refetch_playlist<PlaylistService>(
     State(services): State<Services<PlaylistService>>,
     Path(playlist_id): Path<String>,
-) -> Result<Json<JobResponse>, ApiError>
+    headers: HeaderMap,
+) -> Result<Response, ApiError>
 where
     PlaylistService: IPlaylistService,
 {
@@ -85,10 +86,18 @@ where
         .playlist_service
         .refetch_playlist(&playlist_id)
         .await?;
+    
+    // If the request is from HTMX reload the current page
+    if headers.is_htmx_request() {
+        let redirect_to = format!("/playlist/{}", playlist_id);
+        let mut headers = HeaderMap::new();
+        headers.insert("HX-Redirect", HeaderValue::from_str(&redirect_to).unwrap());
+        return Ok((headers, axum::body::Body::empty()).into_response())
+    }
 
     Ok(Json(JobResponse {
         job_id: job.id.into(),
-    }))
+    }).into_response())
 }
 
 pub async fn generate_pdfs<PlaylistService>(

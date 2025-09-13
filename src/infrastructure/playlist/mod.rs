@@ -36,13 +36,14 @@ impl IPlaylistRepository for PlaylistRepository {
             let track_position = position as i32;
 
             sqlx::query!(
-                "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, album_cover_url, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 track_id,
                 playlist_id_uuid,
                 track.title,
                 track.artist,
                 track.year,
                 track.spotify_url,
+                track.album_cover_url,
                 track_position
             )
             .execute(&mut *tx)
@@ -64,7 +65,7 @@ impl IPlaylistRepository for PlaylistRepository {
         match playlist_entity {
             Some(playlist) => {
                 let tracks = sqlx::query_as::<_, TrackEntity>(
-                    "SELECT id, playlist_id, title, artist, year, spotify_url, position FROM tracks WHERE playlist_id = ? ORDER BY position"
+                    "SELECT id, playlist_id, title, artist, year, spotify_url, album_cover_url, position FROM tracks WHERE playlist_id = ? ORDER BY position"
                 )
                 .bind(Uuid::from(id.clone()))
                 .fetch_all(&self.pool)
@@ -87,7 +88,7 @@ impl IPlaylistRepository for PlaylistRepository {
         match playlist_entity {
             Some(playlist) => {
                 let tracks = sqlx::query_as::<_, TrackEntity>(
-                    "SELECT id, playlist_id, title, artist, year, spotify_url, position FROM tracks WHERE playlist_id = ? ORDER BY position"
+                    "SELECT id, playlist_id, title, artist, year, spotify_url, album_cover_url, position FROM tracks WHERE playlist_id = ? ORDER BY position"
                 )
                 .bind(playlist.id)
                 .fetch_all(&self.pool)
@@ -152,13 +153,14 @@ impl IPlaylistRepository for PlaylistRepository {
             let track_position = position as i32;
 
             sqlx::query!(
-                "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO tracks (id, playlist_id, title, artist, year, spotify_url, album_cover_url, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 track_id,
                 playlist_id_uuid,
                 track.title,
                 track.artist,
                 track.year,
                 track.spotify_url,
+                track.album_cover_url,
                 track_position
             )
             .execute(&mut *tx)

@@ -4,6 +4,17 @@ pub struct TrackVM {
     pub artist: String,
     pub year: i32,
     pub qr_code: String,
+    pub album_cover_url: Option<String>,
+}
+
+impl TrackVM {
+    pub fn has_album_cover(&self) -> bool {
+        self.album_cover_url.is_some()
+    }
+    
+    pub fn album_cover_url_or_empty(&self) -> &str {
+        self.album_cover_url.as_deref().unwrap_or("")
+    }
 }
 
 #[derive(Debug)]

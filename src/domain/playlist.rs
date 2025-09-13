@@ -68,4 +68,5 @@ pub struct Track {
     pub artist: String,
     pub year: i32,
     pub spotify_url: String,
+    pub album_cover_url: Option<String>,
 }

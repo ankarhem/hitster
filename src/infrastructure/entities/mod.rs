@@ -20,6 +20,7 @@ pub struct TrackEntity {
     pub artist: String,
     pub year: i32,
     pub spotify_url: String,
+    pub album_cover_url: Option<String>,
     pub position: i32,
 }
 
@@ -67,6 +68,7 @@ impl From<TrackEntity> for domain::Track {
             artist: entity.artist,
             year: entity.year,
             spotify_url: entity.spotify_url,
+            album_cover_url: entity.album_cover_url,
         }
     }
 }
@@ -128,6 +130,21 @@ impl From<domain::JobStatus> for JobStatusEntity {
             domain::JobStatus::Processing => JobStatusEntity::Processing,
             domain::JobStatus::Completed => JobStatusEntity::Completed,
             domain::JobStatus::Failed => JobStatusEntity::Failed,
+        }
+    }
+}
+
+impl From<domain::Track> for TrackEntity {
+    fn from(track: domain::Track) -> Self {
+        Self {
+            id: Uuid::new_v4(), // Will be set when saving to database
+            playlist_id: Uuid::nil(), // Will be set when saving to database
+            title: track.title,
+            artist: track.artist,
+            year: track.year,
+            spotify_url: track.spotify_url,
+            album_cover_url: track.album_cover_url,
+            position: 0, // Will be set when saving to database
         }
     }
 }

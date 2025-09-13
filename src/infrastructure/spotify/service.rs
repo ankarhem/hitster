@@ -100,6 +100,7 @@ mod conversions {
                 artist: artist_names,
                 year,
                 spotify_url,
+                album_cover_url: value.album.images.first().map(|img| img.url.clone()),
             })
         }
     }
