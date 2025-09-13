@@ -1,4 +1,5 @@
 use crate::application::playlist_service::IPlaylistService;
+use crate::domain::spotify_id::SpotifyId;
 use crate::web::error::ApiError;
 use crate::web::server::Services;
 use axum::{
@@ -9,8 +10,10 @@ use axum::{
 use base64::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::domain::PlaylistId;
 
 const MAX_PLAYLIST_ID_LENGTH: usize = 200;
+const MIN_PLAYLIST_ID_LENGTH: usize = 16; // Spotify IDs are typically 22 characters
 
 pub struct PlaylistController {}
 
@@ -32,16 +35,22 @@ pub async fn create_playlist<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    // Input validation
-    if form.playlist_id.len() > MAX_PLAYLIST_ID_LENGTH {
-        return Err(ApiError::ValidationError("Playlist ID too long".to_string()));
-    }
-    
-    if form.playlist_id.trim().is_empty() {
-        return Err(ApiError::ValidationError("Playlist ID cannot be empty".to_string()));
+    let input = form.playlist_id.trim();
+    if input.len() > MAX_PLAYLIST_ID_LENGTH {
+        return Err(ApiError::ValidationError(
+            "Spotify URL/ID is too long (maximum 100 characters)".to_string(),
+        ));
     }
 
-    let spotify_id = form.playlist_id.parse()?;
+    if input.len() < MIN_PLAYLIST_ID_LENGTH {
+        return Err(ApiError::ValidationError(
+            "Spotify URL/ID is too short".to_string(),
+        ));
+    }
+
+    // Parse the Spotify ID (this will do additional format validation)
+    let spotify_id = SpotifyId::parse(&input)
+        .map_err(|e| ApiError::ValidationError(format!("Invalid Spotify playlist format: {}", e)))?;
 
     let playlist = server
         .playlist_service
@@ -62,7 +71,7 @@ pub async fn refetch_playlist<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id = playlist_id.parse()?;
+    let playlist_id: PlaylistId = playlist_id.parse()?;
     services
         .playlist_service
         .refetch_playlist(&playlist_id)
@@ -77,7 +86,7 @@ pub async fn generate_pdfs<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id = playlist_id.parse()?;
+    let playlist_id: PlaylistId = playlist_id.parse()?;
     let job = services
         .playlist_service
         .generate_playlist_pdfs(&playlist_id)
@@ -101,7 +110,7 @@ pub async fn get_pdfs<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id = playlist_id.parse()?;
+    let playlist_id: PlaylistId = playlist_id.parse()?;
 
     let pdfs = server
         .playlist_service

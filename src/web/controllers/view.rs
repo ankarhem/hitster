@@ -8,6 +8,7 @@ use axum::{
     extract::{Path, State},
     response::Html,
 };
+use crate::domain::PlaylistId;
 
 pub async fn index() -> Result<Html<String>, TemplateError> {
     let template = IndexTemplate {
@@ -23,7 +24,7 @@ pub async fn view_playlist<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id = playlist_id.parse()?;
+    let playlist_id: PlaylistId = playlist_id.parse()?;
     let playlist = match server.playlist_service.get_playlist(&playlist_id).await? {
         None => Err(TemplateError::NotFound(format!("Playlist with id {} not found", playlist_id)))?,
         Some(p) => p,
