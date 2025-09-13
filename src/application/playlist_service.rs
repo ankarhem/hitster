@@ -2,7 +2,7 @@ use crate::application::{IJobsRepository, IPlaylistRepository, IPdfGenerator, IS
 use crate::domain::{Job, JobStatus, Pdf, Playlist, PlaylistId, SpotifyId};
 use std::sync::Arc;
 use tracing::info;
-use crate::application::worker::{IWorker, IWorkerTask};
+use crate::application::worker::{GeneratePlaylistPdfsResult, IWorker};
 
 #[trait_variant::make(IPlaylistService: Send)]
 pub trait _IPlaylistService: Send + Sync {
@@ -99,7 +99,7 @@ where
         };
 
         let task = worker::GeneratePlaylistPdfsTask::new(playlist.id);
-        
+
         let job = self.pdf_worker.enqueue(task).await?;
 
         Ok(job)
@@ -108,8 +108,21 @@ where
     async fn get_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<[Pdf; 2]> {
         // Look for completed PDF generation jobs for this playlist
         let jobs = self.jobs_repository.get_by_playlist_id(id).await?;
-        
-        todo!()
+
+        let (_, pdfs) = jobs.iter()
+            .filter(|j| j.status == JobStatus::Completed)
+            .filter(|j| j.result.is_some())
+            .filter_map(|j| {
+                let result: serde_json::Value = j.result.clone()?;
+                let pdfs: GeneratePlaylistPdfsResult  = serde_json::from_value(result).ok()?;
+                Some((j, pdfs))
+            })
+            .max_by_key(|(j, _)| j.completed_at).ok_or(anyhow::anyhow!("No generation job found"))?;
+
+        let front: Pdf = tokio::fs::read(pdfs.front).await?.into();
+        let back: Pdf = tokio::fs::read(pdfs.back).await?.into();
+
+        Ok([front, back])
     }
 
     async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<Job> {
@@ -119,7 +132,7 @@ where
                 anyhow::bail!("Playlist with ID {} not found", id);
             }
         };
-        
+
         let task = worker::RefetchPlaylistTask::new(playlist.id);
         let job = self.refetch_worker.enqueue(task).await?;
 

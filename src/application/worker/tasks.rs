@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use crate::application::worker::IWorkerTask;
 use crate::application::{IPdfGenerator, IPlaylistRepository, ISpotifyClient};
 use anyhow::anyhow;
@@ -51,6 +52,11 @@ where
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct GeneratePlaylistPdfsResult {
+    pub front: PathBuf,
+    pub back: PathBuf,
+}
 impl<PlaylistRepository, PdfGenerator> IWorkerTask
     for GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>
 where
@@ -58,8 +64,9 @@ where
     PdfGenerator: IPdfGenerator,
 {
     type State = GeneratePlaylistPdfsState<PlaylistRepository, PdfGenerator>;
+    type Output = GeneratePlaylistPdfsResult;
 
-    async fn run(&self, state: &Self::State) -> anyhow::Result<()> {
+    async fn run(&self, state: &Self::State) -> anyhow::Result<GeneratePlaylistPdfsResult> {
         let playlist = state
             .playlist_repository
             .get(&self.playlist_id)
@@ -82,7 +89,10 @@ where
         tokio::fs::write(&front_path, front_pdf_data).await?;
         tokio::fs::write(&back_path, back_pdf_data).await?;
 
-        Ok(())
+        Ok(GeneratePlaylistPdfsResult {
+            front: front_path,
+            back: back_path,
+        })
     }
 }
 
@@ -140,8 +150,9 @@ where
     SpotifyClient: ISpotifyClient,
 {
     type State = RefetchPlaylistState<PlaylistRepository, SpotifyClient>;
+    type Output = ();
 
-    async fn run(&self, state: &Self::State) -> anyhow::Result<()> {
+    async fn run(&self, state: &Self::State) -> anyhow::Result<Self::Output> {
         let current_playlist = match state.playlist_repository.get(&self.playlist_id).await? {
             Some(playlist) => playlist,
             None => {

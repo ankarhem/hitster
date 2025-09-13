@@ -1,8 +1,6 @@
 use crate::domain::Playlist;
 use anyhow::Result;
-use askama::filters::format;
 use oxidize_pdf::{Color, Document, Font, Page};
-use qrcode::render::svg;
 
 
 #[trait_variant::make(IPdfGenerator: Send)]

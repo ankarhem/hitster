@@ -35,15 +35,15 @@ async fn main() -> Result<()> {
     let playlist_repository = Arc::new(PlaylistRepository::new(sqlite_pool.clone()).await?);
     let pdf_generator = Arc::new(PdfGenerator::new());
     
-    let pdf_worker_state = worker::GeneratePlaylistPdfsState {
+    let pdf_worker_state = Arc::new(worker::GeneratePlaylistPdfsState {
         playlist_repository: playlist_repository.clone(),
         pdf_generator: pdf_generator.clone(),
-    };
+    });
     let pdf_worker: Worker<JobsRepository, GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>> = Worker::new(jobs_repository.clone(), pdf_worker_state);
-    let refetch_worker_state = worker::RefetchPlaylistState {
+    let refetch_worker_state = Arc::new(worker::RefetchPlaylistState {
         playlist_repository: playlist_repository.clone(),
         spotify_client: spotify_client.clone(),
-    };
+    });
     let refetch_worker: Worker<JobsRepository, RefetchPlaylistTask<PlaylistRepository, SpotifyClient>> = Worker::new(jobs_repository.clone(), refetch_worker_state);
 
     // application

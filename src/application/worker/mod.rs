@@ -14,8 +14,9 @@ use crate::domain::job::{Job};
 #[trait_variant::make(IWorkerTask: Send)]
 pub trait _IWorkerTask: Serialize + for<'de> Deserialize<'de> {
     type State: Clone + Send + Sync;
+    type Output: Serialize + for<'de> Deserialize<'de> + Send + Sync;
 
-    async fn run(&self, state: &Self::State) -> anyhow::Result<()>;
+    async fn run(&self, state: &Self::State) -> anyhow::Result<Self::Output>;
 }
 #[trait_variant::make(IWorker: Send)]
 pub trait _IWorker: Send + Sync {
@@ -29,7 +30,7 @@ where
     WorkerTask: IWorkerTask,
 {
     jobs_repository: Arc<JobsRepository>,
-    state: Arc<WorkerTask::State>,
+    // state: Arc<WorkerTask::State>,
     task_sender: UnboundedSender<(Job, WorkerTask)>,
 }
 
@@ -44,11 +45,11 @@ where
         let payload = serde_json::to_value(&task)?;
         let job = Job::new(payload);
         let job = self.jobs_repository.create(job).await?;
-        
+
         if let Err(e) = self.task_sender.send((job.clone(), task)) {
-            return Err(anyhow::anyhow!("Failed to send task to worker"));
+            return Err(anyhow::anyhow!("Failed to send task to worker {e}"));
         }
-        
+
         Ok(job)
     }
 }
@@ -60,7 +61,7 @@ where
 {
     pub fn new(
         jobs_repository: Arc<JobsRepository>,
-        state: WorkerTask::State,
+        state: Arc<WorkerTask::State>,
     ) -> Self {
         let (task_sender, mut task_receiver) = mpsc::unbounded_channel::<(Job, WorkerTask)>();
 
@@ -74,12 +75,12 @@ where
                 job.status = crate::domain::JobStatus::Processing;
                 jobs_repository.update(job.clone()).await.unwrap();
 
-
                 let result = task.run(&state).await;
                 match result {
-                    Ok(_) => {
+                    Ok(output) => {
                         job.status = crate::domain::JobStatus::Completed;
                         job.completed_at = Some(chrono::Utc::now());
+                        job.result = Some(serde_json::to_value(output).unwrap());
                         jobs_repository.update(job).await.unwrap();
                     }
                     Err(e) => {
@@ -94,7 +95,7 @@ where
 
         Self {
             jobs_repository,
-            state: Arc::new(state),
+            // state,
             task_sender
         }
     }
