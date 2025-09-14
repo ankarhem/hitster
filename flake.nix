@@ -39,16 +39,36 @@
           };
       };
 
-      packages = forEachSupportedSystem ({ pkgs, naerskLib }: {
+      packages = forEachSupportedSystem ({ pkgs, naerskLib }: rec {
         default = naerskLib.buildPackage {
           pname = "hitster";
           src = ./.;
           buildInputs = with pkgs; [ rustToolchain openssl sqlx-cli ];
           nativeBuildInputs = with pkgs; [ pkg-config ];
         };
+
+        dockerImage = pkgs.dockerTools.buildLayeredImage {
+          name = "hitster";
+          tag = "latest";
+          created = "now";
+
+          contents = [
+            # Runtime dependencies
+            pkgs.cacert
+            pkgs.openssl
+            pkgs.sqlite
+          ];
+
+          config = {
+            Entrypoint = [ "${default}/bin/hitster" ];
+            ExposedPorts = { "3000/tcp" = { }; };
+            Env = [ "RUST_LOG=info" "DATABASE_URL=sqlite:///data/hitster.db" ];
+            WorkingDir = "/data";
+          };
+        };
       });
 
-      devShells = forEachSupportedSystem ({ pkgs }: {
+      devShells = forEachSupportedSystem ({ pkgs, ... }: {
         default = pkgs.mkShell {
           packages = with pkgs; [
             rustToolchain
