@@ -36,6 +36,7 @@ qrcode = "0.14"
 # PDF generation
 oxidize-pdf = {version = "1.2", features = ["compression"]}
 image = {version = "0.25", features = ["png"]}
+rayon = "1.11"
 
 # Templating
 askama = "0.14"

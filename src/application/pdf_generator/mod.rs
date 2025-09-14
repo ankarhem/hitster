@@ -1,6 +1,8 @@
+use rayon::prelude::*;
 use crate::domain::Playlist;
 use anyhow::Result;
 use oxidize_pdf::{Color, Document, Font, Page};
+use rayon::iter::IntoParallelRefIterator;
 
 #[trait_variant::make(IPdfGenerator: Send)]
 pub trait _IPdfGenerator: Send + Sync {
@@ -27,99 +29,107 @@ impl IPdfGenerator for PdfGenerator {
         doc.set_title(format!("{} - Front", playlist.name));
 
         // 4x6 grid = 24 cards per page
-        for tracks_on_page in playlist.tracks.chunks(24) {
-            let mut page = Page::a4();
+        let pages: Vec<_> = playlist
+            .tracks
+            .par_chunks(24)
+            .map(|tracks_on_page| {
+                let mut page = Page::a4();
 
-            let page_width = page.width();
-            let page_height = page.height();
+                let page_width = page.width();
+                let page_height = page.height();
 
-            // 3 columns, 4 rows
-            let cols = 3;
-            let rows = 4;
+                // 3 columns, 4 rows
+                let cols = 3;
+                let rows = 4;
 
-            let card_width = page_width / cols as f64;
-            let card_height = page_height / rows as f64;
+                let card_width = page_width / cols as f64;
+                let card_height = page_height / rows as f64;
 
-            for (index, track) in tracks_on_page.iter().enumerate() {
-                let row = index / cols + 1;
-                let col = index % cols;
+                for (index, track) in tracks_on_page.iter().enumerate() {
+                    let row = index / cols + 1;
+                    let col = index % cols;
 
-                let pos_x = col as f64 * card_width;
-                let pos_y = page.height() - row as f64 * card_height;
+                    let pos_x = col as f64 * card_width;
+                    let pos_y = page.height() - row as f64 * card_height;
 
-                // Draw rectangle border
-                page.graphics()
-                    .set_stroke_color(Color::black())
-                    .rectangle(pos_x, pos_y, card_width, card_height)
-                    .stroke();
+                    // Draw rectangle border
+                    page.graphics()
+                        .set_stroke_color(Color::black())
+                        .rectangle(pos_x, pos_y, card_width, card_height)
+                        .stroke();
 
-                // Add text content
-                let padding = 18.0;
-                let line_height = 16.0;
-                // Gap between artist and title
-                let gap = 4.0;
+                    // Add text content
+                    let padding = 18.0;
+                    let line_height = 16.0;
+                    // Gap between artist and title
+                    let gap = 4.0;
 
-                // Handle artist name with smart wrapping
-                let max_artist_chars = 20; // Approximate character limit for artist lines
-                let artist_lines = wrap_text(&track.artist, max_artist_chars);
-                let mut current_line = 0;
+                    // Handle artist name with smart wrapping
+                    let max_artist_chars = 20; // Approximate character limit for artist lines
+                    let artist_lines = wrap_text(&track.artist, max_artist_chars);
+                    let mut current_line = 0;
 
-                for (idx, artist_line) in artist_lines.iter().enumerate() {
-                    let artist_string = if idx == artist_lines.len() - 1 {
-                        artist_line.clone()
-                    } else {
-                        // Add comma for all but the last line when we split by commas
-                        if track.artist.contains(',') && idx < artist_lines.len() - 1 {
-                            format!("{},", artist_line)
-                        } else {
+                    for (idx, artist_line) in artist_lines.iter().enumerate() {
+                        let artist_string = if idx == artist_lines.len() - 1 {
                             artist_line.clone()
-                        }
-                    };
+                        } else {
+                            // Add comma for all but the last line when we split by commas
+                            if track.artist.contains(',') && idx < artist_lines.len() - 1 {
+                                format!("{},", artist_line)
+                            } else {
+                                artist_line.clone()
+                            }
+                        };
 
+                        let _ = page
+                            .text()
+                            .set_font(Font::Helvetica, 16.0)
+                            .at(
+                                pos_x + padding,
+                                pos_y + card_height
+                                    - line_height
+                                    - padding
+                                    - (current_line as f64 * line_height),
+                            )
+                            .write(&artist_string);
+                        current_line += 1;
+                    }
+
+                    // Add gap between artist and title
+                    current_line += 1;
+
+                    // Handle title with smart wrapping
+                    let max_title_chars = 30; // Approximate character limit for title lines
+                    let title_lines = wrap_text(&track.title, max_title_chars);
+
+                    for title_line in title_lines.iter() {
+                        let _ = page
+                            .text()
+                            .set_font(Font::Helvetica, 12.0)
+                            .at(
+                                pos_x + padding,
+                                pos_y + card_height
+                                    - padding
+                                    - gap
+                                    - (current_line as f64 * line_height),
+                            )
+                            .write(title_line);
+                        current_line += 1;
+                    }
+
+                    // Year at bottom
                     let _ = page
                         .text()
-                        .set_font(Font::Helvetica, 16.0)
-                        .at(
-                            pos_x + padding,
-                            pos_y + card_height
-                                - line_height
-                                - padding
-                                - (current_line as f64 * line_height),
-                        )
-                        .write(&artist_string);
-                    current_line += 1;
+                        .set_font(Font::Helvetica, 32.0)
+                        .at(pos_x + padding, pos_y + line_height + padding)
+                        .write(&track.year.to_string());
                 }
 
-                // Add gap between artist and title
-                current_line += 1;
+                page
+            })
+            .collect();
 
-                // Handle title with smart wrapping
-                let max_title_chars = 30; // Approximate character limit for title lines
-                let title_lines = wrap_text(&track.title, max_title_chars);
-
-                for title_line in title_lines.iter() {
-                    let _ = page
-                        .text()
-                        .set_font(Font::Helvetica, 12.0)
-                        .at(
-                            pos_x + padding,
-                            pos_y + card_height
-                                - padding
-                                - gap
-                                - (current_line as f64 * line_height),
-                        )
-                        .write(title_line);
-                    current_line += 1;
-                }
-
-                // Year at bottom
-                let _ = page
-                    .text()
-                    .set_font(Font::Helvetica, 32.0)
-                    .at(pos_x + padding, pos_y + line_height + padding)
-                    .write(&track.year.to_string());
-            }
-
+        for page in pages {
             doc.add_page(page);
         }
 
@@ -132,44 +142,57 @@ impl IPdfGenerator for PdfGenerator {
         doc.set_title(format!("{} - Back", playlist.name));
 
         // 4x6 grid = 24 cards per page (same as front)
-        for tracks_on_page in playlist.tracks.chunks(24) {
-            let mut page = Page::a4();
+        let pages = playlist
+            .tracks
+            .par_chunks(24)
+            .map(|tracks_on_page| {
+                let mut page = Page::a4();
 
-            let page_width = page.width();
-            let page_height = page.height();
+                let page_width = page.width();
+                let page_height = page.height();
 
-            // 3 columns, 4 rows
-            let cols = 3;
-            let rows = 4;
+                // 3 columns, 4 rows
+                let cols = 3;
+                let rows = 4;
 
-            let card_width = page_width / cols as f64;
-            let card_height = page_height / rows as f64;
+                let card_width = page_width / cols as f64;
+                let card_height = page_height / rows as f64;
 
-            for (index, track) in tracks_on_page.iter().enumerate() {
-                let row = index / cols + 1;
-                let col = index % cols;
+                // Pre-generate all QR codes in parallel for this page
+                let qr_images: Vec<_> = tracks_on_page
+                    .par_iter()
+                    .map(|track| generate_qr_code_image(&track.spotify_url))
+                    .collect::<Result<Vec<_>>>()?;
 
-                let pos_x = col as f64 * card_width;
-                let pos_y = page.height() - row as f64 * card_height;
+                for (index, (track, qr_image)) in tracks_on_page.iter().zip(qr_images.iter()).enumerate() {
+                    let row = index / cols + 1;
+                    let col = index % cols;
 
-                // Draw rectangle border
-                page.graphics()
-                    .set_stroke_color(Color::black())
-                    .rectangle(pos_x, pos_y, card_width, card_height)
-                    .stroke();
+                    let pos_x = col as f64 * card_width;
+                    let pos_y = page.height() - row as f64 * card_height;
 
-                let qr_image = generate_qr_code_image(&track.spotify_url)?;
-                // Create QR code png image
-                page.add_image(&track.spotify_url, qr_image);
-                page.draw_image(
-                    &track.spotify_url,
-                    pos_x + 5.0,
-                    pos_y + 5.0,
-                    card_width - 10.0,
-                    card_height - 10.0,
-                )?;
-            }
+                    // Draw rectangle border
+                    page.graphics()
+                        .set_stroke_color(Color::black())
+                        .rectangle(pos_x, pos_y, card_width, card_height)
+                        .stroke();
 
+                    // Add QR code image
+                    page.add_image(&track.spotify_url, qr_image.clone());
+                    page.draw_image(
+                        &track.spotify_url,
+                        pos_x + 5.0,
+                        pos_y + 5.0,
+                        card_width - 10.0,
+                        card_height - 10.0,
+                    )?;
+                }
+
+                Ok::<Page, anyhow::Error>(page)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        for page in pages {
             doc.add_page(page);
         }
 

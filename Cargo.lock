@@ -972,6 +972,7 @@ dependencies = [
  "image",
  "oxidize-pdf",
  "qrcode",
+ "rayon",
  "rspotify",
  "serde",
  "serde_json",
