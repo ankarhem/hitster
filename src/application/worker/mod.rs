@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::error;
+use tracing::{error, info};
 
 #[trait_variant::make(IWorkerTask: Send)]
 pub trait _IWorkerTask: Serialize + for<'de> Deserialize<'de> {
@@ -30,7 +30,6 @@ where
     WorkerTask: IWorkerTask,
 {
     jobs_repository: Arc<JobsRepository>,
-    // state: Arc<WorkerTask::State>,
     task_sender: UnboundedSender<(Job, WorkerTask)>,
 }
 
@@ -75,7 +74,13 @@ where
                     continue;
                 }
 
+                // Run the task
+                let started_at = chrono::Utc::now();
                 let result = task.run(&state).await;
+                let ended_at = chrono::Utc::now();
+                let diff = ended_at - started_at;
+                info!("Task finished after {} ms", diff.num_milliseconds());
+                
                 match result {
                     Ok(output) => {
                         job.status = crate::domain::JobStatus::Completed;
@@ -105,7 +110,6 @@ where
 
         Self {
             jobs_repository,
-            // state,
             task_sender,
         }
     }
