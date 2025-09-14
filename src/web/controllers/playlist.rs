@@ -1,7 +1,5 @@
-use crate::PlaylistTemplate;
+use crate::{domain, PlaylistTemplate};
 use crate::application::playlist_service::IPlaylistService;
-use crate::domain::spotify_id::SpotifyId;
-use crate::domain::{JobId, JobStatus, PlaylistId};
 use crate::web::error::ApiError;
 use crate::web::extensions::HtmxExtension;
 use crate::web::server::Services;
@@ -60,7 +58,7 @@ where
     }
 
     // Parse the Spotify ID (this will do additional format validation)
-    let spotify_id = SpotifyId::parse(input).map_err(|e| {
+    let spotify_id = domain::SpotifyId::parse(input).map_err(|e| {
         ApiError::ValidationError(format!("Invalid Spotify playlist format: {}", e))
     })?;
 
@@ -118,7 +116,7 @@ pub async fn refetch_playlist<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id: PlaylistId = playlist_id.parse()?;
+    let playlist_id: domain::PlaylistId = playlist_id.parse()?;
     let job = services
         .playlist_service
         .refetch_playlist(&playlist_id)
@@ -146,7 +144,7 @@ pub async fn generate_pdfs<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id: PlaylistId = playlist_id.parse()?;
+    let playlist_id: domain::PlaylistId = playlist_id.parse()?;
     let job = services
         .playlist_service
         .generate_playlist_pdfs(&playlist_id)
@@ -173,7 +171,7 @@ pub async fn download_pdf<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id: crate::domain::PlaylistId = playlist_id.parse()?;
+    let playlist_id: domain::PlaylistId = playlist_id.parse()?;
 
     // Validate PDF type
     if pdf_side != "front" && pdf_side != "back" {
@@ -216,8 +214,8 @@ pub async fn get_job_status<PlaylistService>(
 where
     PlaylistService: IPlaylistService + Send + Sync + 'static,
 {
-    let _playlist_id: PlaylistId = playlist_id.parse().unwrap();
-    let job_id: JobId = job_id.parse().unwrap();
+    let _playlist_id: domain::PlaylistId = playlist_id.parse().unwrap();
+    let job_id: domain::JobId = job_id.parse().unwrap();
 
     let stream = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
         Duration::from_millis(200),
@@ -229,8 +227,8 @@ where
             let job = playlist_service.get_job_by_id(&job_id).await?;
 
             match job {
-                Some(ref j) if j.status == JobStatus::Completed => {
-                    Ok(Event::default().event("done").data("completed"))
+                Some(ref j) if j.status == domain::JobStatus::Completed => {
+                    Ok(Event::default().event("done").data(j.status.to_string()))
                 }
                 Some(ref j) => Ok(Event::default().event("status").data(j.status.to_string())),
                 None => Err(ApiError::NotFound),

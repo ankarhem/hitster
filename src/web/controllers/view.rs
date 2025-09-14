@@ -1,5 +1,5 @@
 use crate::application::playlist_service::IPlaylistService;
-use crate::domain::PlaylistId;
+use crate::domain;
 use crate::web::error::TemplateError;
 use crate::web::server::Services;
 use crate::web::templates::playlist::{JobVM, TrackVM};
@@ -24,7 +24,7 @@ pub async fn view_playlist<PlaylistService>(
 where
     PlaylistService: IPlaylistService,
 {
-    let playlist_id: PlaylistId = playlist_id.parse()?;
+    let playlist_id: domain::PlaylistId = playlist_id.parse()?;
     let playlist = match server.playlist_service.get_playlist(&playlist_id).await? {
         None => Err(TemplateError::NotFound(format!(
             "Playlist with id {} not found",
@@ -63,7 +63,10 @@ where
     let latest_job = server.playlist_service.get_latest_job(&playlist_id).await?;
     let latest_job = latest_job.map(|job| JobVM {
         id: job.id.to_string(),
-        is_in_progress: job.status != crate::domain::JobStatus::Completed,
+        is_in_progress: match job.status {
+            domain::JobStatus::Pending | domain::JobStatus::Processing => true,
+            domain::JobStatus::Completed | domain::JobStatus::Failed => false,
+        },
     });
 
     let has_pdfs = server

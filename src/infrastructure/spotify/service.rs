@@ -33,38 +33,34 @@ impl ISpotifyClient for SpotifyClient {
             .client
             .playlist(rspotify_playlist_id, None, None)
             .await?;
-        
-        let tracks_stream = self.client
-            .playlist_items(full_playlist.id, None, None);
-        
-        let mut skipped_tracks = 0;
 
-        let tracks = tracks_stream
-            .map(|item| -> Result<Option<PlayableItem>> { Ok(item?.track) })
-            .map(|item| -> Result<Option<domain::Track>> {
+        let stream = self
+            .client
+            .playlist_items(full_playlist.id, None, None);
+
+        info!("Time before collecting tracks stream");
+        let tracks = stream
+            .map(|item| async move {
                 let item = item?;
-                
-                if let Some(PlayableItem::Track(track)) = item {
-                    match track.try_into() {
-                        Ok(domain_track) => Ok(Some(domain_track)),
-                        Err(e) => {
-                            tracing::warn!("Skipping track due to conversion error: {}", e);
-                            skipped_tracks += 1;
-                            Ok(None)
-                        }
-                    }
-                } else {
-                    tracing::warn!("Skipping non-track item in playlist");
-                    skipped_tracks += 1;
-                    Ok(None)
+                match item.track {
+                    Some(PlayableItem::Track(track)) => {
+                        let domain_track = track.try_into().ok();
+                        Ok::<Option<domain::Track>, anyhow::Error>(domain_track)
+                    },
+                    _ => {
+                        // Skip non-track items
+                        Ok(None)
+                    },
                 }
             })
-            .try_filter_map(|item| async move { Ok(item) })
-            .try_collect::<Vec<domain::Track>>().await?;
+            .buffer_unordered(2)
+            .try_collect::<Vec<Option<domain::Track>>>()
+            .await?;
 
-        if skipped_tracks > 0 {
-            tracing::warn!("Skipped {} tracks", skipped_tracks);
-        }
+        info!("Time after collecting tracks stream");
+        let tracks: Vec<domain::Track> = tracks.into_iter().flatten().collect();
+        
+        info!("Collected {} tracks from playlist", tracks.len());
 
         Ok(Some(domain::Playlist {
             id: domain::PlaylistId::new()?,
@@ -98,7 +94,7 @@ impl ISpotifyClient for SpotifyClient {
 
 mod conversions {
     use crate::domain::Track;
-    use anyhow::{Result, bail};
+    use anyhow::{Result, bail, Context};
     use chrono::{Datelike, NaiveDate};
     use rspotify::model::FullTrack;
 
@@ -118,8 +114,18 @@ mod conversions {
                     bail!("Empty release date for track: {}", value.name)
                 }
                 Some(ref date_string) => {
-                    let date = date_string.parse::<NaiveDate>()?;
-                    date.year()
+                    // Spotify can return dates in "YYYY-MM-DD" or "YYYY" format
+                    // Sometimes the year can be "0000" which is invalid
+                    if date_string.contains('-') {
+                        let date = date_string.parse::<NaiveDate>().context(format!("Invalid date format {date_string}"))?;
+                        date.year()
+                    } else {
+                        let year = date_string.parse::<i32>().context(format!("Invalid year format {date_string}"))?;
+                        if year == 0 {
+                            bail!("Year cannot be zero for track: {}", value.name);
+                        }
+                        year
+                    }
                 }
             };
             let spotify_url = match value.external_urls.get("spotify") {

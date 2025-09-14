@@ -52,6 +52,12 @@ pub enum JobStatus {
     Failed,
 }
 
+impl JobStatus {
+    pub fn is_done(&self) -> bool {
+        matches!(self, JobStatus::Completed | JobStatus::Failed)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Job {
     pub id: JobId,
