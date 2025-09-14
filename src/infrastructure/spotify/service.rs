@@ -3,9 +3,9 @@ use crate::application::ISpotifyClient;
 use crate::domain;
 use anyhow::Result;
 use futures_util::{StreamExt, TryStreamExt};
-use rspotify::model::PlayableItem;
+use rspotify::model::{PlayableItem};
 use rspotify::{ClientCredsSpotify, Credentials, prelude::BaseClient};
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 #[derive(Clone)]
 pub struct SpotifyClient {
@@ -29,19 +29,49 @@ impl ISpotifyClient for SpotifyClient {
     async fn get_playlist_with_tracks(&self, id: &domain::SpotifyId) -> Result<Option<domain::Playlist>> {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
+
         let full_playlist = self
             .client
             .playlist(rspotify_playlist_id, None, None)
             .await?;
+        
+        let limit = full_playlist.tracks.limit;
 
-        let stream = self
-            .client
-            .playlist_items(full_playlist.id, None, None);
+        // The first request includes the first 100 tracks
+        // we can create a stream to push them into and then fetch the rest
+        let first_100_tracks = full_playlist.tracks.items;
 
-        info!("Time before collecting tracks stream");
-        let tracks = stream
+        // this will round down, which is what we want (because we already have the first page)
+        let pages_to_fetch = &full_playlist.tracks.total / limit;
+        let futures = (0..pages_to_fetch).map(|page| {
+            let offset = 100 + page * limit;
+            let client = &self.client;
+            let playlist_id = full_playlist.id.clone();
+            async move {
+                client
+                    .playlist_items_manual(playlist_id, None, None, Some(limit), Some(offset))
+                    .await
+            }
+        });
+
+        let first_page_stream = futures_util::stream::iter(first_100_tracks);
+        let tracks_stream = futures_util::stream::iter(futures)
+            .buffer_unordered(5)
+            .map(|res| match res {
+                Ok(page) => page.items,
+                Err(e) => {
+                    // Log the error and return an empty vector for this page
+                    // In a real application, you might want to handle this differently
+                    error!("Error fetching playlist page: {}", e);
+                    Vec::new()
+                }
+            })
+            .flat_map(futures_util::stream::iter);
+        // Create a stream of all tracks by combining the first 100 tracks with the rest
+        let full_stream = first_page_stream.chain(tracks_stream);
+
+        let tracks = full_stream
             .map(|item| async move {
-                let item = item?;
                 match item.track {
                     Some(PlayableItem::Track(track)) => {
                         let domain_track = track.try_into().ok();
@@ -53,14 +83,11 @@ impl ISpotifyClient for SpotifyClient {
                     },
                 }
             })
-            .buffer_unordered(2)
+            .buffer_unordered(50)
             .try_collect::<Vec<Option<domain::Track>>>()
             .await?;
 
-        info!("Time after collecting tracks stream");
         let tracks: Vec<domain::Track> = tracks.into_iter().flatten().collect();
-        
-        info!("Collected {} tracks from playlist", tracks.len());
 
         Ok(Some(domain::Playlist {
             id: domain::PlaylistId::new()?,
