@@ -1,8 +1,8 @@
 use crate::Settings;
 use crate::application::ISpotifyClient;
-use crate::domain::{Playlist, PlaylistId, SpotifyId};
+use crate::domain;
 use anyhow::Result;
-use futures_util::StreamExt;
+use futures_util::{StreamExt, TryStreamExt};
 use rspotify::model::PlayableItem;
 use rspotify::{ClientCredsSpotify, Credentials, prelude::BaseClient};
 use tracing::{info, instrument};
@@ -26,36 +26,48 @@ impl SpotifyClient {
 
 impl ISpotifyClient for SpotifyClient {
     #[instrument(skip(self), fields(id = %id))]
-    async fn get_playlist_with_tracks(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
+    async fn get_playlist_with_tracks(&self, id: &domain::SpotifyId) -> Result<Option<domain::Playlist>> {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
         let full_playlist = self
             .client
             .playlist(rspotify_playlist_id, None, None)
             .await?;
-        let mut tracks_stream = self.client.playlist_items(full_playlist.id, None, None);
-
-        let mut tracks = Vec::new();
+        
+        let tracks_stream = self.client
+            .playlist_items(full_playlist.id, None, None);
+        
         let mut skipped_tracks = 0;
 
-        while let Some(item_result) = tracks_stream.next().await {
-            let item = item_result?;
-
-            if let Some(PlayableItem::Track(track)) = item.track {
-                if let Ok(track) = track.try_into() {
-                    tracks.push(track);
-                    continue;
+        let tracks = tracks_stream
+            .map(|item| -> Result<Option<PlayableItem>> { Ok(item?.track) })
+            .map(|item| -> Result<Option<domain::Track>> {
+                let item = item?;
+                
+                if let Some(PlayableItem::Track(track)) = item {
+                    match track.try_into() {
+                        Ok(domain_track) => Ok(Some(domain_track)),
+                        Err(e) => {
+                            tracing::warn!("Skipping track due to conversion error: {}", e);
+                            skipped_tracks += 1;
+                            Ok(None)
+                        }
+                    }
+                } else {
+                    tracing::warn!("Skipping non-track item in playlist");
+                    skipped_tracks += 1;
+                    Ok(None)
                 }
-            }
-            skipped_tracks += 1;
-        }
+            })
+            .try_filter_map(|item| async move { Ok(item) })
+            .try_collect::<Vec<domain::Track>>().await?;
 
         if skipped_tracks > 0 {
             tracing::warn!("Skipped {} tracks", skipped_tracks);
         }
 
-        Ok(Some(Playlist {
-            id: PlaylistId::new()?,
+        Ok(Some(domain::Playlist {
+            id: domain::PlaylistId::new()?,
             name: full_playlist.name,
             tracks,
             spotify_id: Some(id.clone()),
@@ -65,7 +77,7 @@ impl ISpotifyClient for SpotifyClient {
     }
 
     #[instrument(skip(self), fields(id = %id))]
-    async fn get_playlist(&self, id: &SpotifyId) -> Result<Option<Playlist>> {
+    async fn get_playlist(&self, id: &domain::SpotifyId) -> Result<Option<domain::Playlist>> {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
         let full_playlist = self
@@ -73,8 +85,8 @@ impl ISpotifyClient for SpotifyClient {
             .playlist(rspotify_playlist_id, None, None)
             .await?;
 
-        Ok(Some(Playlist {
-            id: PlaylistId::new()?,
+        Ok(Some(domain::Playlist {
+            id: domain::PlaylistId::new()?,
             name: full_playlist.name,
             tracks: Vec::new(),
             spotify_id: Some(id.clone()),
