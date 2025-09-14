@@ -1,11 +1,13 @@
+use std::ops::Deref;
 use crate::Settings;
 use crate::application::ISpotifyClient;
 use crate::domain;
 use anyhow::Result;
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::{StreamExt};
 use rspotify::model::{PlayableItem};
 use rspotify::{ClientCredsSpotify, Credentials, prelude::BaseClient};
 use tracing::{error, info, instrument};
+use rayon::prelude::*;
 
 #[derive(Clone)]
 pub struct SpotifyClient {
@@ -30,11 +32,15 @@ impl ISpotifyClient for SpotifyClient {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
 
+        let before_full = std::time::Instant::now();
         let full_playlist = self
             .client
             .playlist(rspotify_playlist_id, None, None)
             .await?;
-        
+        let after_full = std::time::Instant::now();
+        let diff_full = after_full.duration_since(before_full);
+        info!("Fetched full playlist metadata in {:?}", diff_full);
+
         let limit = full_playlist.tracks.limit;
 
         // The first request includes the first 100 tracks
@@ -70,24 +76,20 @@ impl ISpotifyClient for SpotifyClient {
         // Create a stream of all tracks by combining the first 100 tracks with the rest
         let full_stream = first_page_stream.chain(tracks_stream);
 
+        let before = std::time::Instant::now();
         let tracks = full_stream
-            .map(|item| async move {
-                match item.track {
-                    Some(PlayableItem::Track(track)) => {
-                        let domain_track = track.try_into().ok();
-                        Ok::<Option<domain::Track>, anyhow::Error>(domain_track)
-                    },
-                    _ => {
-                        // Skip non-track items
-                        Ok(None)
-                    },
+            .filter_map(|item| async move {
+                if let Some(PlayableItem::Track(track)) = item.track {
+                    track.try_into().ok()
+                } else {
+                    None
                 }
             })
-            .buffer_unordered(50)
-            .try_collect::<Vec<Option<domain::Track>>>()
-            .await?;
-
-        let tracks: Vec<domain::Track> = tracks.into_iter().flatten().collect();
+            .collect::<Vec<_>>()
+            .await;
+        let after = std::time::Instant::now();
+        let diff = after.duration_since(before);
+        info!("Fetched {} tracks in {:?}", tracks.len(), diff);
 
         Ok(Some(domain::Playlist {
             id: domain::PlaylistId::new()?,
