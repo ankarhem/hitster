@@ -1,8 +1,8 @@
-use crate::{domain, PlaylistTemplate};
 use crate::application::playlist_service::IPlaylistService;
 use crate::web::error::ApiError;
 use crate::web::extensions::HtmxExtension;
 use crate::web::server::Services;
+use crate::{PlaylistTemplate, domain};
 use anyhow::anyhow;
 use askama::Template;
 use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
@@ -91,7 +91,7 @@ where
                     .map_err(|_| anyhow!("Failed to render playlist template"))?;
                 Ok((headers, Html(html)).into_response())
             }
-            (None, _) => Err(ApiError::NotFound)
+            (None, _) => Err(ApiError::NotFound),
         };
     }
 

@@ -1,13 +1,11 @@
-use std::ops::Deref;
 use crate::Settings;
 use crate::application::ISpotifyClient;
 use crate::domain;
 use anyhow::Result;
-use futures_util::{StreamExt};
-use rspotify::model::{PlayableItem};
+use futures_util::StreamExt;
+use rspotify::model::PlayableItem;
 use rspotify::{ClientCredsSpotify, Credentials, prelude::BaseClient};
 use tracing::{error, info, instrument};
-use rayon::prelude::*;
 
 #[derive(Clone)]
 pub struct SpotifyClient {
@@ -28,7 +26,10 @@ impl SpotifyClient {
 
 impl ISpotifyClient for SpotifyClient {
     #[instrument(skip(self), fields(id = %id))]
-    async fn get_playlist_with_tracks(&self, id: &domain::SpotifyId) -> Result<Option<domain::Playlist>> {
+    async fn get_playlist_with_tracks(
+        &self,
+        id: &domain::SpotifyId,
+    ) -> Result<Option<domain::Playlist>> {
         let spotify_id = id.to_string();
         let rspotify_playlist_id = rspotify::model::PlaylistId::from_id_or_uri(&spotify_id)?;
 
@@ -48,7 +49,7 @@ impl ISpotifyClient for SpotifyClient {
         let first_100_tracks = full_playlist.tracks.items;
 
         // this will round down, which is what we want (because we already have the first page)
-        let pages_to_fetch = &full_playlist.tracks.total / limit;
+        let pages_to_fetch = full_playlist.tracks.total / limit;
         let futures = (0..pages_to_fetch).map(|page| {
             let offset = 100 + page * limit;
             let client = &self.client;
@@ -123,7 +124,7 @@ impl ISpotifyClient for SpotifyClient {
 
 mod conversions {
     use crate::domain::Track;
-    use anyhow::{Result, bail, Context};
+    use anyhow::{Context, Result, bail};
     use chrono::{Datelike, NaiveDate};
     use rspotify::model::FullTrack;
 
@@ -146,10 +147,14 @@ mod conversions {
                     // Spotify can return dates in "YYYY-MM-DD" or "YYYY" format
                     // Sometimes the year can be "0000" which is invalid
                     if date_string.contains('-') {
-                        let date = date_string.parse::<NaiveDate>().context(format!("Invalid date format {date_string}"))?;
+                        let date = date_string
+                            .parse::<NaiveDate>()
+                            .context(format!("Invalid date format {date_string}"))?;
                         date.year()
                     } else {
-                        let year = date_string.parse::<i32>().context(format!("Invalid year format {date_string}"))?;
+                        let year = date_string
+                            .parse::<i32>()
+                            .context(format!("Invalid year format {date_string}"))?;
                         if year == 0 {
                             bail!("Year cannot be zero for track: {}", value.name);
                         }

@@ -80,7 +80,7 @@ where
                 let ended_at = chrono::Utc::now();
                 let diff = ended_at - started_at;
                 info!("Task finished after {} ms", diff.num_milliseconds());
-                
+
                 match result {
                     Ok(output) => {
                         job.status = crate::domain::JobStatus::Completed;

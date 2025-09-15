@@ -73,10 +73,10 @@ where
             .await?
             .ok_or(anyhow!("playlist not found for id: {}", &self.playlist_id))?;
 
-
         let front_pdf_data_fut = state.pdf_generator.generate_front_cards(&playlist);
         let back_pdf_data_fut = state.pdf_generator.generate_back_cards(&playlist);
-        let (front_pdf_data, back_pdf_data) = tokio::try_join!(front_pdf_data_fut, back_pdf_data_fut)?;
+        let (front_pdf_data, back_pdf_data) =
+            tokio::try_join!(front_pdf_data_fut, back_pdf_data_fut)?;
 
         // Create output directory if it doesn't exist
         let output_dir = std::path::PathBuf::from("generated_pdfs");

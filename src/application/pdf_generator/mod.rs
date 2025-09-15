@@ -1,8 +1,8 @@
-use rayon::prelude::*;
 use crate::domain::Playlist;
 use anyhow::Result;
 use oxidize_pdf::{Color, Document, Font, Page};
 use rayon::iter::IntoParallelRefIterator;
+use rayon::prelude::*;
 
 #[trait_variant::make(IPdfGenerator: Send)]
 pub trait _IPdfGenerator: Send + Sync {
@@ -164,7 +164,9 @@ impl IPdfGenerator for PdfGenerator {
                     .map(|track| generate_qr_code_image(&track.spotify_url))
                     .collect::<Result<Vec<_>>>()?;
 
-                for (index, (track, qr_image)) in tracks_on_page.iter().zip(qr_images.iter()).enumerate() {
+                for (index, (track, qr_image)) in
+                    tracks_on_page.iter().zip(qr_images.iter()).enumerate()
+                {
                     let row = index / cols + 1;
                     let col = index % cols;
 
