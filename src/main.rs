@@ -15,6 +15,8 @@ async fn main() -> Result<()> {
         .init();
 
     let settings = hitster::Settings::new()?;
+    
+    println!("{:#?}", settings);
 
     // infrastructure
     let spotify_client = Arc::new(SpotifyClient::new(&settings).await?);
