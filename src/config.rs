@@ -38,8 +38,8 @@ pub struct ServerConfig {
 impl Settings {
     pub fn new() -> anyhow::Result<Self> {
         let builder = Config::builder()
-            .add_source(File::with_name("config.default").required(true))
-            .add_source(File::with_name("config").required(false))
+            .add_source(File::with_name("config.default.toml").required(true))
+            .add_source(File::with_name("config.toml").required(false))
             .add_source(config::Environment::with_prefix("HITSTER").separator("_"));
 
         let config = builder.build()?;
