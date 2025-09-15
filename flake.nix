@@ -36,8 +36,9 @@
             pre-commit-hooks = inputs.git-hooks.lib.${system}.run {
               src = ./.;
               hooks = {
-                nixfmt-rfc-style.enable = true;
+                ripsecrets.enable = true;
 
+                nixfmt-rfc-style.enable = true;
                 cargo-check = {
                   enable = true;
                 };
