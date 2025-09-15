@@ -5,6 +5,7 @@
 
 use config::{Config, File};
 use serde::Deserialize;
+use tracing::info;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
@@ -37,6 +38,8 @@ pub struct ServerConfig {
 
 impl Settings {
     pub fn new() -> anyhow::Result<Self> {
+        Self::initialize_config_files()?;
+
         let builder = Config::builder()
             .add_source(File::with_name("config.default.toml").required(true))
             .add_source(File::with_name("config.toml").required(false))
@@ -47,5 +50,24 @@ impl Settings {
         let settings: Settings = config.try_deserialize()?;
 
         Ok(settings)
+    }
+
+    fn initialize_config_files() -> anyhow::Result<()> {
+        use std::fs;
+        use std::path::Path;
+
+        let default_path = Path::new("config.default.toml");
+        if !default_path.exists() {
+            info!("Default config file does not exist, creating");
+            fs::write(default_path, include_str!("../config.default.toml"))?;
+        }
+
+        let custom_path = Path::new("config.toml");
+        if !custom_path.exists() {
+            info!("Custom config file does not exist, creating");
+            fs::write(custom_path, include_str!("../config.example.toml"))?;
+        }
+
+        Ok(())
     }
 }
