@@ -64,7 +64,12 @@ async fn main() -> Result<()> {
     )
     .into();
 
-    run(&settings.server.host, settings.server.port, playlist_service).await?;
+    run(
+        &settings.server.host,
+        settings.server.port,
+        playlist_service,
+    )
+    .await?;
 
     Ok(())
 }
