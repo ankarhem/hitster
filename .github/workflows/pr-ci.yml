@@ -1,0 +1,35 @@
+name: PR CI
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  hygiene:
+    name: Format and Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          github_access_token: {{ secrets.GITHUB_TOKEN }}
+      - name: Check formatting
+        run: nix develop --command cargo fmt -- --check
+      - name: Run clippy
+        run: nix develop --command cargo clippy -- -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [stable, beta]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          github_access_token: {{ secrets.GITHUB_TOKEN }}
+      - name: Run tests
+        run: nix develop --command cargo test --verbose
