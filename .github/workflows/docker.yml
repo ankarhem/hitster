@@ -16,6 +16,8 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker Image
+        env:
+          SQLX_OFFLINE: true
         run: nix build .#dockerImage
 
       - name: Login to GitHub Container Registry
