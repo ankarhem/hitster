@@ -87,13 +87,8 @@
             dive
           ];
 
-          shellHook = ''
-            export DATABASE_URL="sqlite://./db/hitster.db"
-            cargo sqlx prepare
-          '';
-
           env = {
-            # Required by rust-analyzer
+            DATABASE_URL = "sqlite://./db/hitster.db";
             RUST_SRC_PATH =
               "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
           };
