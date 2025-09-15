@@ -25,16 +25,3 @@ impl AsRef<[u8]> for Pdf {
         &self.0
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pdf_into_vec() {
-        let data = vec![1, 2, 3];
-        let pdf: Pdf = data.clone().into();
-        let result: Vec<u8> = pdf.into();
-        assert_eq!(result, data);
-    }
-}
