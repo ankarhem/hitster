@@ -29,4 +29,6 @@ jobs:
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run tests
+        env:
+          SQLX_OFFLINE: true
         run: nix develop --command cargo test --verbose
