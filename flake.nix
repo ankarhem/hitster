@@ -38,6 +38,9 @@
               hooks = {
                 nixfmt-rfc-style.enable = true;
 
+                cargo-check = {
+                  enable = true;
+                };
                 rustfmt = {
                   enable = true;
                   packageOverrides.cargo = pkgs.cargo;
@@ -47,7 +50,6 @@
                   enable = true;
                   packageOverrides.cargo = pkgs.cargo;
                   packageOverrides.clippy = pkgs.clippy;
-                  settings.allFeatures = true;
                 };
               };
             };
