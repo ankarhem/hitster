@@ -13,23 +13,26 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v30
         with:
-          github_access_token: {{ secrets.GITHUB_TOKEN }}
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check formatting
+        env:
+          SQLX_OFFLINE: true
         run: nix develop --command cargo fmt -- --check
       - name: Run clippy
+        env:
+          SQLX_OFFLINE: true
         run: nix develop --command cargo clippy -- -D warnings
 
   test:
     name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust-version: [stable, beta]
     steps:
       - uses: actions/checkout@v5
       - name: Install Nix
         uses: cachix/install-nix-action@v30
         with:
-          github_access_token: {{ secrets.GITHUB_TOKEN }}
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run tests
+        env:
+          SQLX_OFFLINE: true
         run: nix develop --command cargo test --verbose
