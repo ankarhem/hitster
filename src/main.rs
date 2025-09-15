@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
         .init();
 
     let settings = hitster::Settings::new()?;
-    
+
     println!("{:#?}", settings);
 
     // infrastructure
