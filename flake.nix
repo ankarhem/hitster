@@ -8,6 +8,7 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    git-hooks.url = "github:cachix/git-hooks.nix";
   };
 
   outputs = inputs:
@@ -25,6 +26,14 @@
               ];
             };
             naerskLib = pkgs.callPackage inputs.naersk { };
+            pre-commit-hooks = inputs.git-hooks.lib.${system}.run {
+              src = ./.;
+              hooks = {
+                clippy.enable = true;
+                clippy.packageOverrides.cargo = pkgs.cargo;
+                clippy.packageOverrides.clippy = pkgs.clippy;
+              };
+            };
           });
     in {
       overlays.default = final: prev: {
@@ -39,7 +48,7 @@
           };
       };
 
-      packages = forEachSupportedSystem ({ pkgs, naerskLib }: rec {
+      packages = forEachSupportedSystem ({ pkgs, naerskLib, ... }: rec {
         hitster = naerskLib.buildPackage {
           pname = "hitster";
           src = ./.;
@@ -75,7 +84,7 @@
         };
       });
 
-      devShells = forEachSupportedSystem ({ pkgs, ... }: {
+      devShells = forEachSupportedSystem ({ pkgs, pre-commit-hooks, ... }: {
         default = pkgs.mkShell {
           packages = with pkgs; [
             rustToolchain
@@ -89,6 +98,11 @@
             sqlx-cli
             dive
           ];
+
+          buildInputs = [ pre-commit-hooks.enabledPackages ];
+          shellHook = ''
+            ${pre-commit-hooks.shellHook}
+          '';
 
           env = {
             DATABASE_URL = "sqlite://./db/hitster.db";
