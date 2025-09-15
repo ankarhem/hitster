@@ -15,7 +15,7 @@ pub struct SpotifyClient {
 impl SpotifyClient {
     #[instrument(skip(settings))]
     pub async fn new(settings: &Settings) -> Result<Self> {
-        let creds = Credentials::new(&settings.client_id, &settings.client_secret);
+        let creds = Credentials::new(&settings.spotify.client_id, &settings.spotify.client_secret);
         let client = ClientCredsSpotify::new(creds);
         client.request_token().await?;
         info!("Spotify authentication successful");

@@ -1,6 +1,14 @@
-# Example configuration file for Hitster
-# Copy this to config.toml or .env and fill in your credentials
+# Copy to config.toml and fill in your credentials
 
 [spotify]
 client_id = "your_client_id_here"
 client_secret = "your_client_secret_here"
+
+[database]
+#path = "./db/hitster.db"
+#max_connections = 10
+#timeout_seconds = 30
+
+[server]
+#host = "127.0.0.1"
+#port = 3000

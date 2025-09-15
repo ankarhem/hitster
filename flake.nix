@@ -65,11 +65,7 @@
           config = {
             Entrypoint = [ "${hitster}/bin/hitster" ];
             ExposedPorts = { "3000/tcp" = { }; };
-            Env = [
-                "RUST_LOG=info"
-                "DATABASE_URL=sqlite:///data/db/hitster.db"
-                "HITSTER_HOST=0.0.0.0"
-            ];
+            Env = [ "HITSTER_DATABASE__PATH=/data/db/hitster.db" ];
             WorkingDir = "/data";
             Volumes = { "/data" = { }; };
           };

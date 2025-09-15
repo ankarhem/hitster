@@ -1,98 +1,51 @@
 //! Configuration management for Hitster
 //!
-//! This module handles loading configuration from environment variables
-//! and .env files for Spotify API credentials.
+//! This module handles loading configuration from environment variables,
+//! .env files, and configuration files using the `config` crate.
 
-use dotenv::dotenv;
+use config::{Config, File};
 use serde::Deserialize;
-use thiserror::Error;
-use tracing::info;
-
-#[derive(Debug, Error)]
-pub enum ConfigError {
-    #[error("Environment variable not found: {0}")]
-    EnvVarNotFound(String),
-
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
-}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     /// Spotify application client ID
+    pub spotify: SpotifyConfig,
+    /// Database configuration
+    pub database: DatabaseConfig,
+    /// Server configuration
+    pub server: ServerConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SpotifyConfig {
     pub client_id: String,
-    /// Spotify application client secret
     pub client_secret: String,
-    /// Database URL
-    pub database_path: String,
-    /// Server binding host
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DatabaseConfig {
+    pub path: String,
+    pub max_connections: u32,
+    pub timeout_seconds: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ServerConfig {
     pub host: String,
-    /// Server binding port
     pub port: u16,
-    /// Database pool size
-    pub db_pool_max_connections: u32,
-    /// Database connection timeout in seconds
-    pub db_pool_timeout_seconds: u64,
 }
 
 impl Settings {
-    pub fn new() -> Result<Self, ConfigError> {
-        Self::from_env()
-    }
+    pub fn new() -> anyhow::Result<Self> {
+        let builder = Config::builder()
+            .add_source(File::with_name("config.default").required(true))
+            .add_source(File::with_name("config").required(false))
+            .add_source(config::Environment::with_prefix("HITSTER").separator("_"));
 
-    fn from_env() -> Result<Self, ConfigError> {
-        dotenv().ok();
-        Self::load_from_env()
-    }
+        let config = builder.build()?;
 
-    fn load_from_env() -> Result<Self, ConfigError> {
-        let client_id = std::env::var("SPOTIFY_CLIENT_ID")
-            .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_ID".to_string()))?;
-        let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET")
-            .map_err(|_| ConfigError::EnvVarNotFound("SPOTIFY_CLIENT_SECRET".to_string()))?;
-        let database_url = match std::env::var("DATABASE_URL") {
-            Ok(url) => url,
-            Err(_) => {
-                let current_dir = std::env::current_dir().map_err(ConfigError::Io)?;
-                current_dir
-                    .join("sqlite://./db/hitster.db")
-                    .to_string_lossy()
-                    .to_string()
-            }
-        };
+        let settings: Settings = config.try_deserialize()?;
 
-        let database_path = database_url
-            .split("sqlite://")
-            .nth(1)
-            .ok_or_else(|| ConfigError::EnvVarNotFound("DATABASE_URL".to_string()))?
-            .to_string();
-
-        let host = std::env::var("HITSTER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-        let port = std::env::var("HITSTER_PORT")
-            .map(|s| s.parse().unwrap_or(3000))
-            .unwrap_or(3000);
-
-        let db_pool_max_connections = std::env::var("DATABASE_POOL_MAX_CONNECTIONS")
-            .map(|s| s.parse().unwrap_or(10))
-            .unwrap_or(10);
-
-        let db_pool_timeout_seconds = std::env::var("DATABASE_POOL_TIMEOUT_SECONDS")
-            .map(|s| s.parse().unwrap_or(30))
-            .unwrap_or(30);
-
-        info!("Database path: {}", database_path);
-        info!("Server will bind to {}:{}", host, port);
-        info!("Database pool size: {}", db_pool_max_connections);
-        info!("Database pool timeout: {} seconds", db_pool_timeout_seconds);
-
-        Ok(Settings {
-            client_id,
-            client_secret,
-            database_path,
-            host,
-            port,
-            db_pool_max_connections,
-            db_pool_timeout_seconds,
-        })
+        Ok(settings)
     }
 }

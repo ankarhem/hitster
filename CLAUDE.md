@@ -106,16 +106,20 @@ The application uses two main database entities:
 
 ### Configuration
 
-Required environment variables:
-- `SPOTIFY_CLIENT_ID`: Spotify application client ID
-- `SPOTIFY_CLIENT_SECRET`: Spotify application client secret
+The application uses the `config` crate for hierarchical configuration with the following priority order:
 
-Optional variables:
-- `DATABASE_URL`: SQLite database path (defaults to `sqlite://./db/hitster.db`)
-- `HITSTER_HOST`: Server host (defaults to `127.0.0.1`)
-- `HITSTER_PORT`: Server port (defaults to `3000`)
-- `DATABASE_POOL_MAX_CONNECTIONS`: Connection pool size (defaults to `10`)
-- `DATABASE_POOL_TIMEOUT_SECONDS`: Connection timeout (defaults to `30`)
+1. Default configuration (`config.default.toml`)
+2. Configuration file (`config.toml`)
+3. Environment variables with `HITSTER_` prefix
+
+**Environment Variables:**
+- `HITSTER_SPOTIFY__CLIENT_ID`: Spotify application client ID
+- `HITSTER_SPOTIFY__CLIENT_SECRET`: Spotify application client secret
+- `HITSTER_DATABASE__PATH`: SQLite database URL (defaults to `./db/hitster.db`)
+- `HITSTER_DATABASE__MAX_CONNECTIONS`: Database connection pool size (defaults to `10`)
+- `HITSTER_DATABASE__TIMEOUT_SECONDS`: Connection timeout in seconds (defaults to `30`)
+- `HITSTER_SERVER__HOST`: Server host (defaults to `127.0.0.1`)
+- `HITSTER_SERVER__PORT`: Server port (defaults to `3000`)
 
 ### Dependencies
 

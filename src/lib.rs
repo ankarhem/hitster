@@ -5,6 +5,6 @@ pub mod infrastructure;
 pub mod web;
 
 pub use application::PdfGenerator;
-pub use config::{ConfigError, Settings};
+pub use config::Settings;
 pub use infrastructure::SpotifyClient;
 pub use web::templates::PlaylistTemplate;

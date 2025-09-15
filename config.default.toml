@@ -1,0 +1,13 @@
+# Default configuration for Hitster
+[spotify]
+client_id = ""
+client_secret = ""
+
+[database]
+path = "./db/hitster.db"
+max_connections = 10
+timeout_seconds = 30
+
+[server]
+host = "127.0.0.1"
+port = 3000

@@ -16,21 +16,19 @@ async fn main() -> Result<()> {
 
     let settings = hitster::Settings::new()?;
 
-    println!("{:#?}", settings);
-
     // infrastructure
     let spotify_client = Arc::new(SpotifyClient::new(&settings).await?);
 
     // Database setup with connection pooling
     let sqlite_pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(settings.db_pool_max_connections)
+        .max_connections(settings.database.max_connections)
         .acquire_timeout(std::time::Duration::from_secs(
-            settings.db_pool_timeout_seconds,
+            settings.database.timeout_seconds,
         ))
         .connect_with(
             SqliteConnectOptions::new()
                 .create_if_missing(true)
-                .filename(&settings.database_path),
+                .filename(&settings.database.path),
         )
         .await?;
     sqlx::migrate!("./migrations").run(&sqlite_pool).await?;
@@ -66,7 +64,7 @@ async fn main() -> Result<()> {
     )
     .into();
 
-    run(&settings.host, settings.port, playlist_service).await?;
+    run(&settings.server.host, settings.server.port, playlist_service).await?;
 
     Ok(())
 }

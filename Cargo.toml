@@ -28,7 +28,7 @@ thiserror = "2.0"
 displaydoc = "0.2"
 
 # Configuration
-dotenv = "0.15"
+config = "0.14"
 
 # QR code generation
 qrcode = "0.14"
