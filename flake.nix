@@ -29,9 +29,17 @@
             pre-commit-hooks = inputs.git-hooks.lib.${system}.run {
               src = ./.;
               hooks = {
-                clippy.enable = true;
-                clippy.packageOverrides.cargo = pkgs.cargo;
-                clippy.packageOverrides.clippy = pkgs.clippy;
+                rustfmt = {
+                  enable = true;
+                  packageOverrides.cargo = pkgs.cargo;
+                  packageOverrides.rustfmt = pkgs.rustfmt;
+                };
+                clippy = {
+                  enable = true;
+                  packageOverrides.cargo = pkgs.cargo;
+                  packageOverrides.clippy = pkgs.clippy;
+                  settings.allFeatures = true;
+                };
               };
             };
           });
