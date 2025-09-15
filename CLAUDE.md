@@ -2,147 +2,125 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-Hitster is a Rust web application that generates printable cards from Spotify playlists. The application follows a clean architecture pattern with distinct layers for domain logic, application services, infrastructure, and web presentation.
-
-## Architecture
-
-The codebase follows a hexagonal architecture with clear separation of concerns:
-
-- **Domain Layer** (`src/domain/`): Core business entities and value objects
-  - `job.rs`: Job processing entities
-  - `pdf.rs`: PDF generation domain models
-  - `playlist.rs`: Playlist and track entities
-
-- **Application Layer** (`src/application/`): Use cases and business logic
-  - `job_service.rs`: Job orchestration
-  - `playlist_service.rs`: Playlist processing and PDF generation
-  - `interfaces/`: Abstract interfaces for infrastructure
-
-- **Infrastructure Layer** (`src/infrastructure/`): External integrations
-  - `spotify/`: Spotify API client implementation
-  - `jobs/`: Job persistence (currently todo)
-  - `playlist/`: Playlist data persistence
-
-- **Web Layer** (`src/web/`): HTTP server and presentation
-  - `controllers/`: Request handlers
-  - `templates/`: Askama templates (the corresponding html templates are in the `templates/` directory in root)
-  - `server.rs`: Axum web server setup
-
 ## Development Environment
 
-The project uses Nix for development environment management. Enter the development shell with:
+This is a Rust web application using Nix flakes for development environment management.
 
+### Getting Started
+
+Use the Nix development shell:
 ```bash
 nix develop
 ```
 
-Or use standard Rust toolchain:
-
-```bash
-cargo build
-cargo run
-```
-
-## Configuration
-
-The application supports multiple configuration sources in priority order:
-
-1. Environment variables (with `HITSTER_` prefix)
-2. `.env` file
-3. `config.toml` file
-
-Required configuration:
-- `SPOTIFY_CLIENT_ID`: Spotify API client ID
-- `SPOTIFY_CLIENT_SECRET`: Spotify API client secret
-
-## Common Commands
+The shell hook will automatically run `cargo sqlx prepare` to prepare database queries.
 
 ### Building and Running
+
+**Development:**
 ```bash
-# Development build
-cargo build
-
-# Release build
-cargo build --release
-
-# Run the web server
 cargo run
-
-# Run with hot reloading
-cargo watch -x run
 ```
 
-### Testing
+**Production build with Nix:**
 ```bash
-# Run all tests
-cargo test
+nix build
+```
 
-# Run specific test
-cargo test test_name
-
-# Run tests with output
-cargo test -- --nocapture
+**Build docker image:**
+```bash
+nix build .#dockerImage
 ```
 
 ### Code Quality
-```bash
-# Check compilation (fast)
-cargo check
 
-# Format code
+**Format code:**
+```bash
 cargo fmt
-
-# Lint code
-cargo clippy
-
-# Fix clippy issues
-cargo clippy --fix
 ```
 
-### Database Operations
+**Lint code:**
 ```bash
-# The database migrations are run authomatically on startup, but it is possible to run them manually too if necessary.
-sqlx migrate run
-
-# Add new migration
-sqlx migrate add migration_name
-
-# Reset database
-rm db/hitster.db
-sqlx migrate run
+cargo clippy
 ```
 
-## Key Components
+**Check with warnings as errors:**
+```bash
+RUSTFLAGS="-D warnings" cargo build
+```
 
-### Spotify Integration
-- Uses `rspotify` crate for Spotify API integration
-- Handles OAuth2 authentication
-- Fetches playlist and track metadata
+### Database
 
-### PDF Generation
-- Generates front and back card PDFs with QR codes
-- Uses QR codes linking directly to Spotify track**s
-- Templates in `templates/` directory for HTML rendering
+The application uses SQLite with migrations in the `migrations/` directory.
 
-### Jobs (todo)
-- Asynchronous job processing for PDF generation
-- Saved to database (implementation pending)
-- Running as a background task (implementation pending)
+**Initial database setup:**
+```bash
+touch ./db/hitster.db
+cargo sqlx migrate run
+cargo sqlx prepare
+```
 
-### Web Server
+**Development database URL is set in shell hook:** `sqlite://./db/hitster.db`
+
+## Architecture
+
+This is a web application for generating PDF cards from Spotify playlists, following Clean Architecture principles.
+
+### Key Components
+
+**Domain Layer (`src/domain/`):**
+- Core business entities: `Playlist`, `Job`, `Pdf`, `SpotifyId`
+- Value objects and domain logic
+- No external dependencies
+
+**Application Layer (`src/application/`):**
+- `PlaylistService`: Main application service with trait interface
+- `PdfGenerator`: Handles PDF generation
+- `Worker`: Background job processing system
+- Interfaces for repositories and external services
+
+**Infrastructure Layer (`src/infrastructure/`):**
+- `SpotifyClient`: Spotify API integration using rspotify
+- `PlaylistRepository`: SQLite database operations
+- `JobsRepository`: Background job persistence
+- Database entities and SQLx queries
+
+**Web Layer (`src/web/`):**
 - Axum-based web server
-- Serves HTML templates for playlist management
-- RESTful API for job and playlist operations
+- Askama templating for HTML view****s
+- REST API controllers
+- File serving for generated PDFs
 
-## Database Schema
+### Background Jobs
 
-Uses SQLite with migrations in `migrations/`. The schema supports:
-- Playlists with Spotify metadata
-- Jobs for tracking PDF generation
-- PDF file storage references
+The application uses a custom worker system for asynchronous operations:
+- `GeneratePlaylistPdfsTask`: Creates front/back PDF cards for playlists
+- `RefetchPlaylistTask`: Updates playlist data from Spotify API
+- Jobs are persisted in SQLite and processed in background workers
 
-## Current Status
+### Database Schema
 
-The application is under active development with some incomplete implementations. Several infrastructure components have placeholder implementations that log warnings about unused variables.
+The application uses two main database entities:
+- `playlists`: Stores playlist metadata and track information
+- `jobs`: Tracks background job status and results
+
+### Configuration
+
+Required environment variables:
+- `SPOTIFY_CLIENT_ID`: Spotify application client ID
+- `SPOTIFY_CLIENT_SECRET`: Spotify application client secret
+
+Optional variables:
+- `DATABASE_URL`: SQLite database path (defaults to `sqlite://./db/hitster.db`)
+- `HITSTER_HOST`: Server host (defaults to `127.0.0.1`)
+- `HITSTER_PORT`: Server port (defaults to `3000`)
+- `DATABASE_POOL_MAX_CONNECTIONS`: Connection pool size (defaults to `10`)
+- `DATABASE_POOL_TIMEOUT_SECONDS`: Connection timeout (defaults to `30`)
+
+### Dependencies
+
+**Core:** Tokio for async runtime, Axum for web framework, SQLx for database
+**Spotify:** rspotify for API integration
+**PDF:** oxidize-pdf for PDF generation, qrcode for QR codes
+**Templating:** askama for HTML templates
+**Utilities:** serde, anyhow, tracing, uuid, chrono
