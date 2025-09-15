@@ -40,12 +40,13 @@
       };
 
       packages = forEachSupportedSystem ({ pkgs, naerskLib }: rec {
-        default = naerskLib.buildPackage {
+        hitster = naerskLib.buildPackage {
           pname = "hitster";
           src = ./.;
           buildInputs = with pkgs; [ rustToolchain openssl sqlx-cli ];
           nativeBuildInputs = with pkgs; [ pkg-config ];
         };
+        default = hitster;
 
         dockerImage = pkgs.dockerTools.buildLayeredImage {
           name = "hitster";
@@ -57,13 +58,20 @@
             pkgs.cacert
             pkgs.openssl
             pkgs.sqlite
+            # Application
+            hitster
           ];
 
           config = {
-            Entrypoint = [ "${default}/bin/hitster" ];
+            Entrypoint = [ "${hitster}/bin/hitster" ];
             ExposedPorts = { "3000/tcp" = { }; };
-            Env = [ "RUST_LOG=info" "DATABASE_URL=sqlite:///data/hitster.db" ];
+            Env = [
+                "RUST_LOG=info"
+                "DATABASE_URL=sqlite:///data/db/hitster.db"
+                "HITSTER_HOST=0.0.0.0"
+            ];
             WorkingDir = "/data";
+            Volumes = { "/data" = { }; };
           };
         };
       });
@@ -80,6 +88,7 @@
             rust-analyzer
 
             sqlx-cli
+            dive
           ];
 
           shellHook = ''
