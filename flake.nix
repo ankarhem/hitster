@@ -65,7 +65,10 @@
           config = {
             Entrypoint = [ "${hitster}/bin/hitster" ];
             ExposedPorts = { "3000/tcp" = { }; };
-            Env = [ "HITSTER_DATABASE__PATH=/data/db/hitster.db" ];
+            Env = [
+                "HITSTER_DATABASE__PATH=/data/db/hitster.db"
+                "HITSTER_CONFIG_DIR=/config"
+            ];
             WorkingDir = "/data";
             Volumes = { "/data" = { }; };
           };

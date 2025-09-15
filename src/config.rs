@@ -5,6 +5,7 @@
 
 use config::{Config, File};
 use serde::Deserialize;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -38,12 +39,20 @@ pub struct ServerConfig {
 
 impl Settings {
     pub fn new() -> anyhow::Result<Self> {
-        Self::initialize_config_files()?;
+        let config_dir = std::env::var("HITSTER_CONFIG_DIR")
+            .unwrap_or_else(|_| ".".to_string())
+            .parse::<PathBuf>()?;
+
+        Self::initialize_config_files(&config_dir)?;
 
         let builder = Config::builder()
-            .add_source(File::with_name("config.default.toml").required(true))
-            .add_source(File::with_name("config.toml").required(false))
-            .add_source(config::Environment::with_prefix("HITSTER").separator("_"));
+            .add_source(File::from(config_dir.join("config.default.toml")))
+            .add_source(File::from(config_dir.join("config.toml")))
+            .add_source(
+                config::Environment::with_prefix("HITSTER")
+                    .prefix_separator("_")
+                    .separator("__"),
+            );
 
         let config = builder.build()?;
 
@@ -52,17 +61,16 @@ impl Settings {
         Ok(settings)
     }
 
-    fn initialize_config_files() -> anyhow::Result<()> {
+    fn initialize_config_files(config_dir: &Path) -> anyhow::Result<()> {
         use std::fs;
-        use std::path::Path;
 
-        let default_path = Path::new("config.default.toml");
+        let default_path = config_dir.join("config.default.toml");
         if !default_path.exists() {
             info!("Default config file does not exist, creating");
             fs::write(default_path, include_str!("../config.default.toml"))?;
         }
 
-        let custom_path = Path::new("config.toml");
+        let custom_path = config_dir.join("config.toml");
         if !custom_path.exists() {
             info!("Custom config file does not exist, creating");
             fs::write(custom_path, include_str!("../config.example.toml"))?;
