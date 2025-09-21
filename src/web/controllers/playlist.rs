@@ -47,7 +47,7 @@ where
     let input = form.playlist_id.trim();
     if input.len() > MAX_PLAYLIST_ID_LENGTH {
         return Err(ApiError::ValidationError(
-            "Spotify URL/ID is too long (maximum 100 characters)".to_string(),
+            "Spotify URL/ID is too long".to_string(),
         ));
     }
 
