@@ -28,11 +28,22 @@
             pkgs = import inputs.nixpkgs {
               inherit system;
               overlays = [
-                inputs.rust-overlay.overlays.default
-                inputs.self.overlays.default
+                (import inputs.rust-overlay)
+                (self: super: {
+                  rustToolchain = (super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml).override {
+                    extensions = [
+                      "rust-analyzer"
+                      "rust-src"
+                      "rustfmt"
+                    ];
+                  };
+                })
               ];
             };
-            naerskLib = pkgs.callPackage inputs.naersk { };
+            naerskLib = pkgs.callPackage inputs.naersk {
+              cargo = pkgs.rustToolchain;
+              rustc = pkgs.rustToolchain;
+            };
             pre-commit-hooks = inputs.git-hooks.lib.${system}.run {
               src = ./.;
               hooks = {
@@ -40,17 +51,21 @@
 
                 nixfmt-rfc-style.enable = true;
                 cargo-check = {
-                  enable = true;
+                  enable = false;
+                  package = pkgs.rustToolchain;
                 };
                 rustfmt = {
                   enable = true;
-                  packageOverrides.cargo = pkgs.cargo;
-                  packageOverrides.rustfmt = pkgs.rustfmt;
+                  packageOverrides = {
+                    cargo = pkgs.rustToolchain;
+                  };
                 };
                 clippy = {
                   enable = true;
-                  packageOverrides.cargo = pkgs.cargo;
-                  packageOverrides.clippy = pkgs.clippy;
+                  packageOverrides = {
+                    cargo = pkgs.rustToolchain;
+                    clippy = pkgs.rustToolchain;
+                  };
                 };
               };
             };
@@ -58,24 +73,6 @@
         );
     in
     {
-      overlays.default = final: prev: {
-        rustToolchain =
-          let
-            rust = prev.rust-bin;
-          in
-          if builtins.pathExists ./rust-toolchain.toml then
-            rust.fromRustupToolchainFile ./rust-toolchain.toml
-          else if builtins.pathExists ./rust-toolchain then
-            rust.fromRustupToolchainFile ./rust-toolchain
-          else
-            rust.stable.latest.default.override {
-              extensions = [
-                "rust-src"
-                "rustfmt"
-              ];
-            };
-      };
-
       packages = forEachSupportedSystem (
         { pkgs, naerskLib, ... }:
         rec {
@@ -83,7 +80,6 @@
             pname = "hitster";
             src = ./.;
             buildInputs = with pkgs; [
-              rustToolchain
               openssl
               sqlx-cli
             ];
