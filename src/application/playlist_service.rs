@@ -3,22 +3,41 @@ use crate::application::{
     IJobsRepository, IPdfGenerator, IPlaylistRepository, ISpotifyClient, worker,
 };
 use crate::domain::{Job, JobId, JobStatus, Pdf, Playlist, PlaylistId, SpotifyId};
+use std::future::Future;
 use std::sync::Arc;
 use tracing::info;
 
-#[trait_variant::make(IPlaylistService: Send)]
-pub trait _IPlaylistService: Clone + Send + Sync + 'static {
-    async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>>;
-    async fn create_partial_playlist_from_spotify(
+pub trait IPlaylistService: Clone + Send + Sync + 'static {
+    fn create_from_spotify(
         &self,
         id: &SpotifyId,
-    ) -> anyhow::Result<(Option<Playlist>, Option<Job>)>;
-    async fn get_playlist(&self, id: &PlaylistId) -> anyhow::Result<Option<Playlist>>;
-    async fn generate_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<Job>;
-    async fn get_playlist_pdfs(&self, id: &PlaylistId) -> anyhow::Result<[Pdf; 2]>;
-    async fn refetch_playlist(&self, id: &PlaylistId) -> anyhow::Result<Job>;
-    async fn get_latest_job(&self, playlist_id: &PlaylistId) -> anyhow::Result<Option<Job>>;
-    async fn get_job_by_id(&self, job_id: &JobId) -> anyhow::Result<Option<Job>>;
+    ) -> impl Future<Output = anyhow::Result<Option<Playlist>>> + Send;
+    fn create_partial_playlist_from_spotify(
+        &self,
+        id: &SpotifyId,
+    ) -> impl Future<Output = anyhow::Result<(Option<Playlist>, Option<Job>)>> + Send;
+    fn get_playlist(
+        &self,
+        id: &PlaylistId,
+    ) -> impl Future<Output = anyhow::Result<Option<Playlist>>> + Send;
+    fn generate_playlist_pdfs(
+        &self,
+        id: &PlaylistId,
+    ) -> impl Future<Output = anyhow::Result<Job>> + Send;
+    fn get_playlist_pdfs(
+        &self,
+        id: &PlaylistId,
+    ) -> impl Future<Output = anyhow::Result<[Pdf; 2]>> + Send;
+    fn refetch_playlist(&self, id: &PlaylistId)
+    -> impl Future<Output = anyhow::Result<Job>> + Send;
+    fn get_latest_job(
+        &self,
+        playlist_id: &PlaylistId,
+    ) -> impl Future<Output = anyhow::Result<Option<Job>>> + Send;
+    fn get_job_by_id(
+        &self,
+        job_id: &JobId,
+    ) -> impl Future<Output = anyhow::Result<Option<Job>>> + Send;
 }
 
 #[derive(Clone)]

@@ -57,8 +57,6 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 # Date/time handling
 chrono = { version = "0.4", features = ["serde"] }
 
-# Add boundaries for async traits
-trait-variant = "0.1.2"
 winnow = "0.7.13"
 
 [package.metadata.askama]

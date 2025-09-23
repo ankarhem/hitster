@@ -5,22 +5,22 @@ pub use tasks::*;
 use crate::application::interfaces::IJobsRepository;
 use crate::domain::job::Job;
 use serde::{Deserialize, Serialize};
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{error, info};
 
-#[trait_variant::make(IWorkerTask: Send)]
-pub trait _IWorkerTask: Serialize + for<'de> Deserialize<'de> + 'static {
+pub trait IWorkerTask: Serialize + for<'de> Deserialize<'de> + Send + 'static {
     type State: Clone + Send + Sync;
     type Output: Serialize + for<'de> Deserialize<'de> + Send + Sync;
 
-    async fn run(&self, state: &Self::State) -> anyhow::Result<Self::Output>;
+    fn run(&self, state: &Self::State)
+    -> impl Future<Output = anyhow::Result<Self::Output>> + Send;
 }
-#[trait_variant::make(IWorker: Send)]
-pub trait _IWorker: Send + Sync {
+pub trait IWorker: Send + Sync {
     type Task: IWorkerTask;
-    async fn enqueue(&self, task: Self::Task) -> Result<Job, anyhow::Error>;
+    fn enqueue(&self, task: Self::Task) -> impl Future<Output = Result<Job, anyhow::Error>> + Send;
 }
 
 pub struct Worker<JR: IJobsRepository, WT: IWorkerTask> {

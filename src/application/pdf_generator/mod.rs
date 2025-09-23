@@ -3,11 +3,17 @@ use anyhow::Result;
 use oxidize_pdf::{Color, Document, Font, Page};
 use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::*;
+use std::future::Future;
 
-#[trait_variant::make(IPdfGenerator: Send)]
-pub trait _IPdfGenerator: Clone + Send + Sync + 'static {
-    async fn generate_front_cards(&self, playlist: &Playlist) -> anyhow::Result<Vec<u8>>;
-    async fn generate_back_cards(&self, playlist: &Playlist) -> anyhow::Result<Vec<u8>>;
+pub trait IPdfGenerator: Clone + Send + Sync + 'static {
+    fn generate_front_cards(
+        &self,
+        playlist: &Playlist,
+    ) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send;
+    fn generate_back_cards(
+        &self,
+        playlist: &Playlist,
+    ) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send;
 }
 
 #[derive(Clone)]
