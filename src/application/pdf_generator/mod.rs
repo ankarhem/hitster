@@ -5,10 +5,12 @@ use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::*;
 
 #[trait_variant::make(IPdfGenerator: Send)]
-pub trait _IPdfGenerator: Send + Sync {
+pub trait _IPdfGenerator: Clone + Send + Sync + 'static {
     async fn generate_front_cards(&self, playlist: &Playlist) -> anyhow::Result<Vec<u8>>;
     async fn generate_back_cards(&self, playlist: &Playlist) -> anyhow::Result<Vec<u8>>;
 }
+
+#[derive(Clone)]
 pub struct PdfGenerator;
 
 impl Default for PdfGenerator {

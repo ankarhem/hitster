@@ -4,7 +4,6 @@ pub use tasks::*;
 
 use crate::application::interfaces::IJobsRepository;
 use crate::domain::job::Job;
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -12,7 +11,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tracing::{error, info};
 
 #[trait_variant::make(IWorkerTask: Send)]
-pub trait _IWorkerTask: Serialize + for<'de> Deserialize<'de> {
+pub trait _IWorkerTask: Serialize + for<'de> Deserialize<'de> + 'static {
     type State: Clone + Send + Sync;
     type Output: Serialize + for<'de> Deserialize<'de> + Send + Sync;
 
@@ -24,21 +23,13 @@ pub trait _IWorker: Send + Sync {
     async fn enqueue(&self, task: Self::Task) -> Result<Job, anyhow::Error>;
 }
 
-pub struct Worker<JobsRepository, WorkerTask>
-where
-    JobsRepository: IJobsRepository,
-    WorkerTask: IWorkerTask,
-{
-    jobs_repository: Arc<JobsRepository>,
-    task_sender: UnboundedSender<(Job, WorkerTask)>,
+pub struct Worker<JR: IJobsRepository, WT: IWorkerTask> {
+    jobs_repository: Arc<JR>,
+    task_sender: UnboundedSender<(Job, WT)>,
 }
 
-impl<JobsRepository, WorkerTask> IWorker for Worker<JobsRepository, WorkerTask>
-where
-    JobsRepository: IJobsRepository + 'static,
-    WorkerTask: IWorkerTask + 'static,
-{
-    type Task = WorkerTask;
+impl<JR: IJobsRepository, WT: IWorkerTask> IWorker for Worker<JR, WT> {
+    type Task = WT;
 
     async fn enqueue(&self, task: Self::Task) -> Result<Job, anyhow::Error> {
         let payload = serde_json::to_value(&task)?;
@@ -53,13 +44,9 @@ where
     }
 }
 
-impl<JobsRepository, WorkerTask> Worker<JobsRepository, WorkerTask>
-where
-    JobsRepository: IJobsRepository + 'static,
-    WorkerTask: IWorkerTask + 'static,
-{
-    pub fn new(jobs_repository: Arc<JobsRepository>, state: Arc<WorkerTask::State>) -> Self {
-        let (task_sender, mut task_receiver) = mpsc::unbounded_channel::<(Job, WorkerTask)>();
+impl<JR: IJobsRepository, WT: IWorkerTask> Worker<JR, WT> {
+    pub fn new(jobs_repository: Arc<JR>, state: Arc<WT::State>) -> Self {
+        let (task_sender, mut task_receiver) = mpsc::unbounded_channel::<(Job, WT)>();
 
         let _state = state.clone();
         let _jobs_repository = jobs_repository.clone();

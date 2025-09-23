@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tracing::info;
 
 #[trait_variant::make(IPlaylistService: Send)]
-pub trait _IPlaylistService: Send + Sync {
+pub trait _IPlaylistService: Clone + Send + Sync + 'static {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>>;
     async fn create_partial_playlist_from_spotify(
         &self,
@@ -22,54 +22,28 @@ pub trait _IPlaylistService: Send + Sync {
 }
 
 #[derive(Clone)]
-pub struct PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-    JobsRepository: IJobsRepository,
-    PdfGenerator: IPdfGenerator,
-{
-    spotify_client: Arc<SpotifyClient>,
-    playlist_repository: Arc<PlaylistRepository>,
-    jobs_repository: Arc<JobsRepository>,
-    pdf_worker: Arc<
-        worker::Worker<
-            JobsRepository,
-            worker::GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>,
-        >,
-    >,
-    refetch_worker: Arc<
-        worker::Worker<
-            JobsRepository,
-            worker::RefetchPlaylistTask<PlaylistRepository, SpotifyClient>,
-        >,
-    >,
+pub struct PlaylistService<
+    SC: ISpotifyClient,
+    PR: IPlaylistRepository,
+    JR: IJobsRepository,
+    PG: IPdfGenerator,
+> {
+    spotify_client: Arc<SC>,
+    playlist_repository: Arc<PR>,
+    jobs_repository: Arc<JR>,
+    pdf_worker: Arc<worker::Worker<JR, worker::GeneratePlaylistPdfsTask<PR, PG>>>,
+    refetch_worker: Arc<worker::Worker<JR, worker::RefetchPlaylistTask<PR, SC>>>,
 }
 
-impl<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
-    PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository + 'static,
-    SpotifyClient: ISpotifyClient + 'static,
-    JobsRepository: IJobsRepository + 'static,
-    PdfGenerator: IPdfGenerator + 'static,
+impl<SC: ISpotifyClient, PR: IPlaylistRepository, JR: IJobsRepository, PG: IPdfGenerator>
+    PlaylistService<SC, PR, JR, PG>
 {
     pub fn new(
-        playlist_repository: Arc<PlaylistRepository>,
-        spotify_client: Arc<SpotifyClient>,
-        jobs_repository: Arc<JobsRepository>,
-        pdf_worker: Arc<
-            worker::Worker<
-                JobsRepository,
-                worker::GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>,
-            >,
-        >,
-        refetch_worker: Arc<
-            worker::Worker<
-                JobsRepository,
-                worker::RefetchPlaylistTask<PlaylistRepository, SpotifyClient>,
-            >,
-        >,
+        playlist_repository: Arc<PR>,
+        spotify_client: Arc<SC>,
+        jobs_repository: Arc<JR>,
+        pdf_worker: Arc<worker::Worker<JR, worker::GeneratePlaylistPdfsTask<PR, PG>>>,
+        refetch_worker: Arc<worker::Worker<JR, worker::RefetchPlaylistTask<PR, SC>>>,
     ) -> Self {
         Self {
             spotify_client,
@@ -81,13 +55,8 @@ where
     }
 }
 
-impl<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator> IPlaylistService
-    for PlaylistService<SpotifyClient, PlaylistRepository, JobsRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository + 'static,
-    SpotifyClient: ISpotifyClient + 'static,
-    JobsRepository: IJobsRepository + 'static,
-    PdfGenerator: IPdfGenerator + 'static,
+impl<SC: ISpotifyClient, PR: IPlaylistRepository, JR: IJobsRepository, PG: IPdfGenerator>
+    IPlaylistService for PlaylistService<SC, PR, JR, PG>
 {
     async fn create_from_spotify(&self, id: &SpotifyId) -> anyhow::Result<Option<Playlist>> {
         if let Some(existing) = self.playlist_repository.get_by_spotify_id(id).await? {

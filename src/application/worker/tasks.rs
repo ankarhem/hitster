@@ -7,20 +7,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize)]
-pub struct GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository,
-    PdfGenerator: IPdfGenerator,
-{
+pub struct GeneratePlaylistPdfsTask<PR: IPlaylistRepository, PG: IPdfGenerator> {
     pub playlist_id: PlaylistId,
-    _marker: std::marker::PhantomData<(PlaylistRepository, PdfGenerator)>,
+    _marker: std::marker::PhantomData<(PR, PG)>,
 }
 
-impl<PlaylistRepository, PdfGenerator> GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository,
-    PdfGenerator: IPdfGenerator,
-{
+impl<PR: IPlaylistRepository, PG: IPdfGenerator> GeneratePlaylistPdfsTask<PR, PG> {
     pub fn new(playlist_id: PlaylistId) -> Self {
         Self {
             playlist_id,
@@ -29,21 +21,12 @@ where
     }
 }
 
-pub struct GeneratePlaylistPdfsState<PlaylistRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository,
-    PdfGenerator: IPdfGenerator,
-{
-    pub playlist_repository: Arc<PlaylistRepository>,
-    pub pdf_generator: Arc<PdfGenerator>,
+pub struct GeneratePlaylistPdfsState<PR: IPlaylistRepository, PG: IPdfGenerator> {
+    pub playlist_repository: Arc<PR>,
+    pub pdf_generator: Arc<PG>,
 }
 
-impl<PlaylistRepository, PdfGenerator> Clone
-    for GeneratePlaylistPdfsState<PlaylistRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository,
-    PdfGenerator: IPdfGenerator,
-{
+impl<PR: IPlaylistRepository, PG: IPdfGenerator> Clone for GeneratePlaylistPdfsState<PR, PG> {
     fn clone(&self) -> Self {
         Self {
             playlist_repository: self.playlist_repository.clone(),
@@ -57,13 +40,8 @@ pub struct GeneratePlaylistPdfsResult {
     pub front: PathBuf,
     pub back: PathBuf,
 }
-impl<PlaylistRepository, PdfGenerator> IWorkerTask
-    for GeneratePlaylistPdfsTask<PlaylistRepository, PdfGenerator>
-where
-    PlaylistRepository: IPlaylistRepository,
-    PdfGenerator: IPdfGenerator,
-{
-    type State = GeneratePlaylistPdfsState<PlaylistRepository, PdfGenerator>;
+impl<PR: IPlaylistRepository, PG: IPdfGenerator> IWorkerTask for GeneratePlaylistPdfsTask<PR, PG> {
+    type State = GeneratePlaylistPdfsState<PR, PG>;
     type Output = GeneratePlaylistPdfsResult;
 
     async fn run(&self, state: &Self::State) -> anyhow::Result<GeneratePlaylistPdfsResult> {
@@ -99,20 +77,12 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct RefetchPlaylistTask<PlaylistRepository, SpotifyClient>
-where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-{
+pub struct RefetchPlaylistTask<PR: IPlaylistRepository, SC: ISpotifyClient> {
     pub playlist_id: PlaylistId,
-    _marker: std::marker::PhantomData<(PlaylistRepository, SpotifyClient)>,
+    _marker: std::marker::PhantomData<(PR, SC)>,
 }
 
-impl<PlaylistRepository, SpotifyClient> RefetchPlaylistTask<PlaylistRepository, SpotifyClient>
-where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-{
+impl<PR: IPlaylistRepository, SC: ISpotifyClient> RefetchPlaylistTask<PR, SC> {
     pub fn new(playlist_id: PlaylistId) -> Self {
         Self {
             playlist_id,
@@ -121,21 +91,12 @@ where
     }
 }
 
-pub struct RefetchPlaylistState<PlaylistRepository, SpotifyClient>
-where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-{
-    pub playlist_repository: Arc<PlaylistRepository>,
-    pub spotify_client: Arc<SpotifyClient>,
+pub struct RefetchPlaylistState<PR: IPlaylistRepository, SC: ISpotifyClient> {
+    pub playlist_repository: Arc<PR>,
+    pub spotify_client: Arc<SC>,
 }
 
-impl<PlaylistRepository, SpotifyClient> Clone
-    for RefetchPlaylistState<PlaylistRepository, SpotifyClient>
-where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-{
+impl<PR: IPlaylistRepository, SC: ISpotifyClient> Clone for RefetchPlaylistState<PR, SC> {
     fn clone(&self) -> Self {
         Self {
             playlist_repository: self.playlist_repository.clone(),
@@ -144,13 +105,8 @@ where
     }
 }
 
-impl<PlaylistRepository, SpotifyClient> IWorkerTask
-    for RefetchPlaylistTask<PlaylistRepository, SpotifyClient>
-where
-    PlaylistRepository: IPlaylistRepository,
-    SpotifyClient: ISpotifyClient,
-{
-    type State = RefetchPlaylistState<PlaylistRepository, SpotifyClient>;
+impl<PR: IPlaylistRepository, SC: ISpotifyClient> IWorkerTask for RefetchPlaylistTask<PR, SC> {
+    type State = RefetchPlaylistState<PR, SC>;
     type Output = ();
 
     async fn run(&self, state: &Self::State) -> anyhow::Result<Self::Output> {
